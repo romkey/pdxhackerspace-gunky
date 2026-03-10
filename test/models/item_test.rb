@@ -6,10 +6,10 @@ class ItemTest < ActiveSupport::TestCase
     assert item.valid?
   end
 
-  test "invalid without description" do
+  test "invalid without description or photo" do
     item = Item.new(description: nil)
     assert_not item.valid?
-    assert_includes item.errors[:description], "can't be blank"
+    assert_includes item.errors[:description], "is required when no photo is provided"
   end
 
   test "sets default expiration date on create" do
