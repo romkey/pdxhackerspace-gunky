@@ -12,7 +12,7 @@ class OllamaService
   def describe_image(image_blob)
     image_data = Base64.strict_encode64(image_blob.download)
 
-    uri = URI.join(@settings.ollama_url, "/api/generate")
+    uri = endpoint_uri
     payload = {
       model: @settings.ollama_model,
       prompt: @settings.prompt,
@@ -36,5 +36,22 @@ class OllamaService
 
     parsed = JSON.parse(response.body)
     parsed["response"]&.strip.presence || raise(Error, "Ollama returned empty response")
+  end
+
+  private
+
+  def endpoint_uri
+    base = URI.parse(@settings.ollama_url.to_s)
+
+    unless base.is_a?(URI::HTTP) && base.host.present?
+      raise Error, "Invalid Ollama URL: must be http(s) with a host"
+    end
+
+    base.path = "/api/generate"
+    base.query = nil
+    base.fragment = nil
+    base
+  rescue URI::InvalidURIError
+    raise Error, "Invalid Ollama URL"
   end
 end
