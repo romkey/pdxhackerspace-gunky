@@ -2,6 +2,8 @@
 
 *Pronounced the same way you pronounce "GIF."*
 
+**G**unky **U**proots **N**asty [**K**ipple](#kipple), **Y**ay!
+
 Gunky helps you figure out what to do with all that stuff piling up. Upload items, snap a photo, and let the community decide their fate through Slack polls:
 
 - **Mine** — someone claims it
@@ -59,3 +61,25 @@ docker compose run --rm test rubocop
 - Redis 7 / Sidekiq
 - Bootstrap 5.3
 - Stimulus / Turbo
+
+## Kipple?
+
+"Kipple is useless objects, like junk mail or match folders after you use the last match or gum wrappers or yesterday's homeopape. When nobody's around, kipple reproduces itself. For instance, if you go to bed leaving any kipple around your apartment, when you wake up the next morning there's twice as much of it. It always gets more and more."
+
+"I see." The girl regarded him uncertainly, not knowing whether to believe him. Not sure if he meant it seriously.
+
+"There's the First Law of Kipple," he said. "'Kipple drives out nonkipple.' Like Gresham's law about bad money. And in these apartments there's been nobody there to fight the kipple."
+
+"So it has taken over completely," the girl finished. She nodded. "Now I understand."
+
+"Your place, here," he said, "this apartment you've picked—it's too kipple-ized to live in. We can roll the kipple-factor back; we can do like I said, raid the other apts. But—" He broke off.
+
+"But what?"
+
+Isidore said, "We can't win."
+
+"Why not?" The girl stepped into the hall, closing the door behind her; arms folded self-consciously before her small high breasts she faced him, eager to understand. Or so it appeared to him, anyhow. She was at least listening.
+
+"No one can win against kipple," he said, "except temporarily and maybe in one spot, like in my apartment I've sort of created a stasis between the pressure of kipple and nonkipple, for the time being. But eventually I'll die or go away, and then the kipple will again take over. It's a universal principle operating throughout the universe; the entire universe is moving toward a final state of total, absolute kippleization."
+
+*— Philip K. Dick, **Do Androids Dream of Electric Sheep?** (1968)*
