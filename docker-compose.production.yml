@@ -32,6 +32,7 @@ services:
       SLACK_CHANNEL_ID: ${SLACK_CHANNEL_ID}
       SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET}
       APP_HOST: ${APP_HOST:-localhost}
+      APP_PROTOCOL: ${APP_PROTOCOL:-https}
 
   sidekiq:
     image: ghcr.io/romkey/pdxhackerspace-gunky:${IMAGE_TAG:-latest}
@@ -51,6 +52,7 @@ services:
       SLACK_CHANNEL_ID: ${SLACK_CHANNEL_ID}
       SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET}
       APP_HOST: ${APP_HOST:-localhost}
+      APP_PROTOCOL: ${APP_PROTOCOL:-https}
 
 volumes:
   postgres_data:

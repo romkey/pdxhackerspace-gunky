@@ -99,7 +99,7 @@ class SlackService
     blocks << { type: "section", fields: fields }
 
     if item.photo.attached?
-      photo_url = Rails.application.routes.url_helpers.rails_blob_url(item.photo, host: ENV.fetch("APP_HOST", "localhost:3000"))
+      photo_url = Rails.application.routes.url_helpers.rails_blob_url(item.photo, **app_url_options)
       blocks << {
         type: "image",
         image_url: photo_url,
@@ -129,5 +129,31 @@ class SlackService
     end
 
     blocks
+  end
+
+  def app_url_options
+    app_host = ENV.fetch("APP_HOST", "localhost:3000").to_s.strip
+    parsed = parse_app_host(app_host)
+
+    {
+      host: parsed[:host],
+      protocol: ENV["APP_PROTOCOL"].presence || parsed[:protocol] || default_protocol
+    }
+  end
+
+  def parse_app_host(app_host)
+    return { host: app_host, protocol: nil } unless app_host.match?(/\Ahttps?:\/\//i)
+
+    uri = URI.parse(app_host)
+    host = +"#{uri.host}"
+    host << ":#{uri.port}" if uri.port && ![ 80, 443 ].include?(uri.port)
+
+    { host: host, protocol: uri.scheme }
+  rescue URI::InvalidURIError
+    { host: app_host, protocol: nil }
+  end
+
+  def default_protocol
+    Rails.env.production? ? "https" : "http"
   end
 end

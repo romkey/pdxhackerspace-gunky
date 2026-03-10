@@ -41,6 +41,7 @@ The app will be available at http://localhost:3000.
 5. Under **Interactivity & Shortcuts**, enable interactivity and set the request URL to `https://your-domain/slack/interactions`
 6. Copy the **Signing Secret** from **Basic Information** to `SLACK_SIGNING_SECRET` in `.env`
 7. Set `SLACK_CHANNEL_ID` to the channel where polls should be posted
+8. Set `APP_HOST` for image URLs used in Slack messages (host or host:port). Optionally set `APP_PROTOCOL` (`http` or `https`).
 
 ### Running Tests
 

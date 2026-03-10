@@ -79,6 +79,34 @@ class SlackServiceTest < ActiveSupport::TestCase
     assert_includes claimed_field[:text], "alice"
   end
 
+  test "app_url_options uses APP_PROTOCOL with host-only APP_HOST" do
+    service = SlackService.new
+    ENV["APP_HOST"] = "gunky.example.org"
+    ENV["APP_PROTOCOL"] = "https"
+
+    options = service.send(:app_url_options)
+
+    assert_equal "gunky.example.org", options[:host]
+    assert_equal "https", options[:protocol]
+  ensure
+    ENV.delete("APP_HOST")
+    ENV.delete("APP_PROTOCOL")
+  end
+
+  test "app_url_options supports full URL APP_HOST" do
+    service = SlackService.new
+    ENV["APP_HOST"] = "https://gunky.example.org:8443"
+    ENV.delete("APP_PROTOCOL")
+
+    options = service.send(:app_url_options)
+
+    assert_equal "gunky.example.org:8443", options[:host]
+    assert_equal "https", options[:protocol]
+  ensure
+    ENV.delete("APP_HOST")
+    ENV.delete("APP_PROTOCOL")
+  end
+
   test "build_item_blocks uses fallback text when description is blank" do
     item = Item.new(
       description: "",
