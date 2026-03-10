@@ -1,0 +1,40 @@
+<h2>Settings: Locations</h2>
+
+<div class="row">
+  <div class="col-md-6">
+    <h5>Add Location</h5>
+    <%= form_with(model: @location, url: settings_locations_path, class: "d-flex gap-2 mb-4") do |f| %>
+      <div class="flex-grow-1">
+        <%= f.text_field :name, class: "form-control #{'is-invalid' if @location.errors[:name].any?}", placeholder: "Location name", required: true %>
+        <% if @location.errors[:name].any? %>
+          <div class="invalid-feedback"><%= @location.errors[:name].first %></div>
+        <% end %>
+      </div>
+      <%= f.submit "Add", class: "btn btn-primary" %>
+    <% end %>
+  </div>
+</div>
+
+<% if @locations.any? %>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th class="text-end" style="width: 150px;">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @locations.each do |location| %>
+        <tr>
+          <td class="align-middle"><%= location.name %></td>
+          <td class="text-end">
+            <%= link_to "Edit", edit_settings_location_path(location), class: "btn btn-sm btn-outline-secondary" %>
+            <%= button_to "Delete", settings_location_path(location), method: :delete, class: "btn btn-sm btn-outline-danger", form: { data: { turbo_confirm: "Delete '#{location.name}'?" } } %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% else %>
+  <p class="text-muted">No locations yet. Add one above.</p>
+<% end %>

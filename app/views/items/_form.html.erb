@@ -15,9 +15,20 @@
     <%= f.text_area :description, class: "form-control", rows: 3, required: true, placeholder: "What is this item?" %>
   </div>
 
-  <div class="mb-3">
+  <div class="mb-3" data-controller="location-picker">
     <%= f.label :location, class: "form-label" %>
-    <%= f.text_field :location, class: "form-control", placeholder: "Where is it?" %>
+    <%= f.text_field :location, class: "form-control", placeholder: "Where is it?", data: { location_picker_target: "field" } %>
+    <% if locations.any? %>
+      <div class="mt-2 d-flex flex-wrap gap-1">
+        <% locations.each do |loc| %>
+          <button type="button" class="btn btn-sm btn-outline-secondary"
+                  data-action="location-picker#pick"
+                  data-location="<%= loc.name %>">
+            <%= loc.name %>
+          </button>
+        <% end %>
+      </div>
+    <% end %>
   </div>
 
   <div class="mb-3">

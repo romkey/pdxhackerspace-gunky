@@ -10,6 +10,10 @@ Rails.application.routes.draw do
     end
   end
 
+  namespace :settings do
+    resources :locations, except: :show
+  end
+
   post "slack/interactions", to: "slack_interactions#create"
 
   get "up" => "rails/health#show", as: :rails_health_check

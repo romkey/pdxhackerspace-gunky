@@ -14,9 +14,8 @@ services:
 
   web:
     image: ghcr.io/romkey/pdxhackerspace-gunky:${IMAGE_TAG:-latest}
+    command: ["./bin/rails", "server", "-b", "0.0.0.0"]
     restart: unless-stopped
-    ports:
-      - "${PORT:-80}:80"
     depends_on:
       - db
       - redis

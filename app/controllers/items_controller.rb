@@ -14,6 +14,7 @@ class ItemsController < ApplicationController
 
   def new
     @item = Item.new
+    @locations = Location.sorted
   end
 
   def create
@@ -23,17 +24,20 @@ class ItemsController < ApplicationController
       PostToSlackJob.perform_later(@item.id) if ENV["SLACK_BOT_TOKEN"].present?
       redirect_to @item, notice: "Item was successfully created."
     else
+      @locations = Location.sorted
       render :new, status: :unprocessable_entity
     end
   end
 
   def edit
+    @locations = Location.sorted
   end
 
   def update
     if @item.update(item_params)
       redirect_to @item, notice: "Item was successfully updated."
     else
+      @locations = Location.sorted
       render :edit, status: :unprocessable_entity
     end
   end
