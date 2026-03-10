@@ -4,7 +4,11 @@ class Item < ApplicationRecord
 
   enum :disposition, { pending: 0, mine: 1, foster: 2, kill: 3 }
 
-  validates :description, presence: true
+  validate :description_or_photo_present
+
+  def display_description
+    description.presence || ai_description.presence || "Awaiting AI description..."
+  end
 
   before_create :set_default_expiration
 
@@ -38,5 +42,11 @@ class Item < ApplicationRecord
 
   def set_default_expiration
     self.expiration_date ||= 7.days.from_now.to_date
+  end
+
+  def description_or_photo_present
+    if description.blank? && !photo.attached?
+      errors.add(:description, "is required when no photo is provided")
+    end
   end
 end

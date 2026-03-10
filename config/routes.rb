@@ -12,6 +12,7 @@ Rails.application.routes.draw do
 
   namespace :settings do
     resources :locations, except: :show
+    resource :agent, only: [ :show, :update ], controller: "agent"
   end
 
   post "slack/interactions", to: "slack_interactions#create"

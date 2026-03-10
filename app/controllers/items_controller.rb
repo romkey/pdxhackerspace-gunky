@@ -22,6 +22,7 @@ class ItemsController < ApplicationController
 
     if @item.save
       PostToSlackJob.perform_later(@item.id) if ENV["SLACK_BOT_TOKEN"].present?
+      DescribeItemJob.perform_later(@item.id) if @item.photo.attached? && @item.description.blank? && AgentSetting.enabled?
       redirect_to @item, notice: "Item was successfully created."
     else
       @locations = Location.sorted

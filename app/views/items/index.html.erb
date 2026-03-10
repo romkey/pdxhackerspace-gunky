@@ -20,14 +20,14 @@
       <div class="col">
         <div class="card h-100">
           <% if item.photo.attached? %>
-            <%= image_tag item.photo.variant(resize_to_fill: [400, 300]), class: "card-img-top", alt: item.description.truncate(50) %>
+            <%= image_tag item.photo.variant(resize_to_fill: [400, 300]), class: "card-img-top", alt: item.display_description.truncate(50) %>
           <% else %>
             <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center" style="height: 200px;">
               <span class="text-white-50 fs-4">No photo</span>
             </div>
           <% end %>
           <div class="card-body">
-            <h5 class="card-title"><%= link_to item.description.truncate(60), item, class: "text-decoration-none" %></h5>
+            <h5 class="card-title"><%= link_to item.display_description.truncate(60), item, class: "text-decoration-none" %></h5>
             <p class="card-text text-muted mb-1">
               <small><%= item.location.presence || "No location" %></small>
             </p>

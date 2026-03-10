@@ -1,0 +1,9 @@
+<div id="item_description">
+  <h1 class="mb-3"><%= item.display_description %></h1>
+  <% if item.ai_description.present? && item.description.present? && item.description != item.ai_description %>
+    <p class="text-muted small">AI description: <%= item.ai_description %></p>
+  <% end %>
+  <% if item.description.blank? && item.ai_description.blank? && item.photo.attached? && AgentSetting.enabled? %>
+    <p class="text-muted"><em>AI is analyzing the photo...</em></p>
+  <% end %>
+</div>
