@@ -112,8 +112,8 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
 
     upload = Rack::Test::UploadedFile.new(file.path, "image/jpeg", true, original_filename: "item.jpg")
 
-    AgentSetting.stub(:enabled?, true) do
-      OllamaService.any_instance.stub(:describe_image, "AI found a red toolbox.") do
+    with_overridden_class_method(AgentSetting, :enabled?) { true } do
+      with_overridden_instance_method(OllamaService, :describe_image) { "AI found a red toolbox." } do
         post preview_description_items_path, params: { photo: upload }
       end
     end
@@ -143,7 +143,7 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
 
     upload = Rack::Test::UploadedFile.new(file.path, "image/jpeg", true, original_filename: "item.jpg")
 
-    AgentSetting.stub(:enabled?, false) do
+    with_overridden_class_method(AgentSetting, :enabled?) { false } do
       post preview_description_items_path, params: { photo: upload }
     end
 
@@ -208,5 +208,23 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to item_path(@item)
     assert_equal "Invalid disposition.", flash[:alert]
     assert @item.reload.pending?
+  end
+
+  private
+
+  def with_overridden_class_method(klass, method_name, &replacement)
+    original_method = klass.method(method_name)
+    klass.define_singleton_method(method_name, &replacement)
+    yield
+  ensure
+    klass.define_singleton_method(method_name, original_method)
+  end
+
+  def with_overridden_instance_method(klass, method_name, &replacement)
+    original_method = klass.instance_method(method_name)
+    klass.define_method(method_name, &replacement)
+    yield
+  ensure
+    klass.define_method(method_name, original_method)
   end
 end
