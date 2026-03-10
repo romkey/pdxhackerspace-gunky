@@ -102,6 +102,60 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
 
   # Edit
 
+  # Preview description
+
+  test "preview_description uploads photo and returns AI description" do
+    file = Tempfile.new([ "item-photo", ".jpg" ])
+    file.binmode
+    file.write("fake image bytes")
+    file.rewind
+
+    upload = Rack::Test::UploadedFile.new(file.path, "image/jpeg", true, original_filename: "item.jpg")
+
+    AgentSetting.stub(:enabled?, true) do
+      OllamaService.any_instance.stub(:describe_image, "AI found a red toolbox.") do
+        post preview_description_items_path, params: { photo: upload }
+      end
+    end
+
+    assert_response :success
+    payload = JSON.parse(response.body)
+    assert_equal "AI found a red toolbox.", payload["description"]
+    assert payload["signed_id"].present?
+    assert ActiveStorage::Blob.find_signed(payload["signed_id"]).present?
+  ensure
+    file&.close
+    file&.unlink
+  end
+
+  test "preview_description returns error without photo" do
+    post preview_description_items_path
+
+    assert_response :unprocessable_entity
+    assert_equal "Photo is required.", JSON.parse(response.body)["error"]
+  end
+
+  test "preview_description uploads photo when AI disabled" do
+    file = Tempfile.new([ "item-photo", ".jpg" ])
+    file.binmode
+    file.write("fake image bytes")
+    file.rewind
+
+    upload = Rack::Test::UploadedFile.new(file.path, "image/jpeg", true, original_filename: "item.jpg")
+
+    AgentSetting.stub(:enabled?, false) do
+      post preview_description_items_path, params: { photo: upload }
+    end
+
+    assert_response :success
+    payload = JSON.parse(response.body)
+    assert_nil payload["description"]
+    assert payload["signed_id"].present?
+  ensure
+    file&.close
+    file&.unlink
+  end
+
   test "edit returns success" do
     get edit_item_path(@item)
     assert_response :success

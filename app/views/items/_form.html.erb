@@ -1,4 +1,11 @@
-<%= form_with(model: item, class: "needs-validation") do |f| %>
+<%= form_with(
+  model: item,
+  class: "needs-validation",
+  data: {
+    controller: "photo-ai",
+    photo_ai_upload_url_value: preview_description_items_path
+  }
+) do |f| %>
   <% if item.errors.any? %>
     <div class="alert alert-danger">
       <h5><%= pluralize(item.errors.count, "error") %> prevented this item from being saved:</h5>
@@ -12,7 +19,7 @@
 
   <div class="mb-3">
     <%= f.label :description, class: "form-label" %>
-    <%= f.text_area :description, class: "form-control", rows: 3, placeholder: "What is this item? Leave blank and the AI agent will describe it from the photo." %>
+    <%= f.text_area :description, class: "form-control", rows: 3, placeholder: "What is this item? Leave blank and the AI agent will describe it from the photo.", data: { photo_ai_target: "description" } %>
   </div>
 
   <div class="mb-3" data-controller="location-picker">
@@ -33,7 +40,8 @@
 
   <div class="mb-3">
     <%= f.label :photo, class: "form-label" %>
-    <%= f.file_field :photo, class: "form-control", accept: "image/*" %>
+    <%= f.file_field :photo, class: "form-control", accept: "image/*", data: { photo_ai_target: "photoInput", action: "change->photo-ai#selected" } %>
+    <div class="form-text" data-photo-ai-target="status"></div>
     <% if item.photo.attached? %>
       <div class="mt-2">
         <%= image_tag item.photo.variant(resize_to_fill: [200, 150]), class: "rounded" %>

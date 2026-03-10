@@ -37,6 +37,33 @@ class ItemsController < ApplicationController
     end
   end
 
+  def preview_description
+    photo = params[:photo]
+    if photo.blank?
+      render json: { error: "Photo is required." }, status: :unprocessable_entity
+      return
+    end
+
+    io = photo.respond_to?(:tempfile) ? photo.tempfile : photo
+    io.rewind if io.respond_to?(:rewind)
+
+    blob = ActiveStorage::Blob.create_and_upload!(
+      io: io,
+      filename: photo.respond_to?(:original_filename) ? photo.original_filename : "upload.jpg",
+      content_type: photo.respond_to?(:content_type) ? photo.content_type : nil
+    )
+
+    ai_description = nil
+    if AgentSetting.enabled?
+      ai_description = OllamaService.new.describe_image(blob)
+    end
+
+    render json: { signed_id: blob.signed_id, description: ai_description }
+  rescue OllamaService::Error => e
+    blob&.purge_later
+    render json: { error: e.message }, status: :unprocessable_entity
+  end
+
   def edit
     @locations = Location.sorted
   end

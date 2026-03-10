@@ -5,6 +5,10 @@ Rails.application.routes.draw do
   mount Sidekiq::Web => "/sidekiq"
 
   resources :items do
+    collection do
+      post :preview_description
+    end
+
     member do
       patch :resolve
       post :describe
