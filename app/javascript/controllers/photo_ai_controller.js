@@ -7,7 +7,7 @@ export default class extends Controller {
   }
 
   connect() {
-    this.originalPhotoInputName = this.photoInputTarget.name
+    this.originalPhotoInputName = this.photoInputTargets[0]?.name || "item[photo]"
     this.previewObjectUrl = null
   }
 
@@ -16,20 +16,21 @@ export default class extends Controller {
   }
 
   async selected() {
-    const file = this.photoInputTarget.files[0]
+    const sourceInput = event.currentTarget
+    const file = sourceInput.files[0]
     if (!file) return
 
     this.showPreview(file)
-    this.photoInputTarget.name = this.originalPhotoInputName
+    this.restorePhotoInputNames()
     this.removeHiddenPhotoField()
 
-    this.photoInputTarget.disabled = true
+    this.setPhotoInputsDisabled(true)
     this.updateStatus("Uploading photo and generating AI description...")
 
     try {
       const data = await this.uploadAndDescribe(file)
       this.ensureHiddenPhotoField().value = data.signed_id
-      this.photoInputTarget.name = ""
+      this.clearPhotoInputNames()
 
       if (this.descriptionTarget.value.trim() === "" && data.description) {
         this.descriptionTarget.value = data.description
@@ -41,10 +42,10 @@ export default class extends Controller {
         this.updateStatus("Photo uploaded. AI description is unavailable because the AI agent is disabled.")
       }
     } catch (error) {
-      this.photoInputTarget.name = this.originalPhotoInputName
+      this.restorePhotoInputNames()
       this.updateStatus(error.message, true)
     } finally {
-      this.photoInputTarget.disabled = false
+      this.setPhotoInputsDisabled(false)
     }
   }
 
@@ -111,5 +112,23 @@ export default class extends Controller {
       URL.revokeObjectURL(this.previewObjectUrl)
       this.previewObjectUrl = null
     }
+  }
+
+  clearPhotoInputNames() {
+    this.photoInputTargets.forEach((input) => {
+      input.name = ""
+    })
+  }
+
+  restorePhotoInputNames() {
+    this.photoInputTargets.forEach((input) => {
+      input.name = this.originalPhotoInputName
+    })
+  }
+
+  setPhotoInputsDisabled(disabled) {
+    this.photoInputTargets.forEach((input) => {
+      input.disabled = disabled
+    })
   }
 }
