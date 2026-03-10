@@ -15,8 +15,13 @@ class OllamaService
     uri = endpoint_uri
     payload = {
       model: @settings.ollama_model,
-      prompt: @settings.prompt,
-      images: [ image_data ],
+      messages: [
+        {
+          role: "user",
+          content: @settings.prompt.presence || "Describe this photo",
+          images: [ image_data ]
+        }
+      ],
       stream: false
     }
 
@@ -35,7 +40,9 @@ class OllamaService
     end
 
     parsed = JSON.parse(response.body)
-    parsed["response"]&.strip.presence || raise(Error, "Ollama returned empty response")
+    parsed.dig("message", "content")&.strip.presence ||
+      parsed["response"]&.strip.presence ||
+      raise(Error, "Ollama returned empty response")
   end
 
   private
@@ -47,7 +54,7 @@ class OllamaService
       raise Error, "Invalid Ollama URL: must be http(s) with a host"
     end
 
-    base.path = "/api/generate"
+    base.path = "/api/chat"
     base.query = nil
     base.fragment = nil
     base
