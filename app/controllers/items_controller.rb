@@ -1,7 +1,7 @@
 class ItemsController < ApplicationController
   include Pagy::Method
 
-  before_action :set_item, only: [ :show, :edit, :update, :destroy, :resolve ]
+  before_action :set_item, only: [ :show, :edit, :update, :destroy, :resolve, :describe ]
 
   def index
     items = Item.order(created_at: :desc)
@@ -22,7 +22,14 @@ class ItemsController < ApplicationController
 
     if @item.save
       PostToSlackJob.perform_later(@item.id) if ENV["SLACK_BOT_TOKEN"].present?
-      DescribeItemJob.perform_later(@item.id) if @item.photo.attached? && @item.description.blank? && AgentSetting.enabled?
+      if @item.photo.attached? && @item.description.blank?
+        if AgentSetting.enabled?
+          Rails.logger.info("Enqueuing DescribeItemJob for item #{@item.id}")
+          DescribeItemJob.perform_later(@item.id)
+        else
+          Rails.logger.info("AI agent disabled, skipping DescribeItemJob for item #{@item.id}")
+        end
+      end
       redirect_to @item, notice: "Item was successfully created."
     else
       @locations = Location.sorted
@@ -46,6 +53,21 @@ class ItemsController < ApplicationController
   def destroy
     @item.destroy
     redirect_to items_path, notice: "Item was successfully deleted."
+  end
+
+  def describe
+    unless @item.photo.attached?
+      redirect_to @item, alert: "No photo attached to describe."
+      return
+    end
+
+    unless AgentSetting.enabled?
+      redirect_to @item, alert: "AI agent is not enabled. Enable it in Settings > AI Agent."
+      return
+    end
+
+    DescribeItemJob.perform_later(@item.id, force: true)
+    redirect_to @item, notice: "AI description requested. It will update shortly."
   end
 
   def resolve

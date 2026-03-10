@@ -2,6 +2,15 @@
 
 <div class="row">
   <div class="col-lg-8">
+    <% if @item.photo.attached? && AgentSetting.enabled? %>
+      <div class="mb-3">
+        <%= button_to "Regenerate AI Description", describe_item_path(@item), method: :post, class: "btn btn-outline-info btn-sm" %>
+        <% if @item.ai_description.present? %>
+          <span class="text-muted small ms-2">Last AI description: <%= @item.ai_description.truncate(80) %></span>
+        <% end %>
+      </div>
+    <% end %>
+
     <%= render "form", item: @item, locations: @locations %>
   </div>
 </div>
