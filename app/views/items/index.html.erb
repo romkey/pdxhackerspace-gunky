@@ -1,0 +1,55 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1>Items</h1>
+  <%= link_to "New Item", new_item_path, class: "btn btn-primary" %>
+</div>
+
+<ul class="nav nav-pills mb-4">
+  <li class="nav-item">
+    <%= link_to "All", items_path, class: "nav-link #{params[:disposition].blank? ? 'active' : ''}" %>
+  </li>
+  <% Item.dispositions.each_key do |d| %>
+    <li class="nav-item">
+      <%= link_to d.capitalize, items_path(disposition: d), class: "nav-link #{params[:disposition] == d ? 'active' : ''}" %>
+    </li>
+  <% end %>
+</ul>
+
+<% if @items.any? %>
+  <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+    <% @items.each do |item| %>
+      <div class="col">
+        <div class="card h-100">
+          <% if item.photo.attached? %>
+            <%= image_tag item.photo.variant(resize_to_fill: [400, 300]), class: "card-img-top", alt: item.description.truncate(50) %>
+          <% else %>
+            <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center" style="height: 200px;">
+              <span class="text-white-50 fs-4">No photo</span>
+            </div>
+          <% end %>
+          <div class="card-body">
+            <h5 class="card-title"><%= link_to item.description.truncate(60), item, class: "text-decoration-none" %></h5>
+            <p class="card-text text-muted mb-1">
+              <small><%= item.location.presence || "No location" %></small>
+            </p>
+            <span class="badge <%= disposition_badge_class(item.disposition) %>"><%= item.disposition.capitalize %></span>
+            <% if item.expired? && item.pending? %>
+              <span class="badge bg-warning text-dark">Expired</span>
+            <% end %>
+          </div>
+          <div class="card-footer text-muted">
+            <small>Expires: <%= item.expiration_date&.strftime("%b %d, %Y") || "N/A" %></small>
+          </div>
+        </div>
+      </div>
+    <% end %>
+  </div>
+
+  <div class="d-flex justify-content-center mt-4">
+    <%== pagy_bootstrap_nav(@pagy) if @pagy.pages > 1 %>
+  </div>
+<% else %>
+  <div class="text-center py-5">
+    <h4 class="text-muted">No items found</h4>
+    <p><%= link_to "Add the first item", new_item_path %></p>
+  </div>
+<% end %>

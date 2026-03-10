@@ -1,0 +1,62 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: gunky
+      POSTGRES_PASSWORD: gunky
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  web:
+    build: .
+    command: bash -c "rm -f tmp/pids/server.pid && bin/rails server -b 0.0.0.0 -p 3000"
+    volumes:
+      - .:/rails
+      - storage:/rails/storage
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+      - redis
+    environment:
+      DATABASE_URL: postgres://gunky:gunky@db:5432/gunky_development
+      REDIS_URL: redis://redis:6379/0
+      RAILS_ENV: development
+
+  sidekiq:
+    build: .
+    command: bundle exec sidekiq
+    volumes:
+      - .:/rails
+      - storage:/rails/storage
+    depends_on:
+      - db
+      - redis
+    environment:
+      DATABASE_URL: postgres://gunky:gunky@db:5432/gunky_development
+      REDIS_URL: redis://redis:6379/0
+      RAILS_ENV: development
+
+  test:
+    build: .
+    command: bash -c "bin/rails db:test:prepare && bin/rails test"
+    volumes:
+      - .:/rails
+    depends_on:
+      - db
+      - redis
+    environment:
+      DATABASE_URL: postgres://gunky:gunky@db:5432/gunky_test
+      REDIS_URL: redis://redis:6379/1
+      RAILS_ENV: test
+
+volumes:
+  postgres_data:
+  storage:

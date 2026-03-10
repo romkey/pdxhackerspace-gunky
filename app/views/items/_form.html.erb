@@ -1,0 +1,43 @@
+<%= form_with(model: item, class: "needs-validation") do |f| %>
+  <% if item.errors.any? %>
+    <div class="alert alert-danger">
+      <h5><%= pluralize(item.errors.count, "error") %> prevented this item from being saved:</h5>
+      <ul class="mb-0">
+        <% item.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="mb-3">
+    <%= f.label :description, class: "form-label" %>
+    <%= f.text_area :description, class: "form-control", rows: 3, required: true, placeholder: "What is this item?" %>
+  </div>
+
+  <div class="mb-3">
+    <%= f.label :location, class: "form-label" %>
+    <%= f.text_field :location, class: "form-control", placeholder: "Where is it?" %>
+  </div>
+
+  <div class="mb-3">
+    <%= f.label :photo, class: "form-label" %>
+    <%= f.file_field :photo, class: "form-control", accept: "image/*" %>
+    <% if item.photo.attached? %>
+      <div class="mt-2">
+        <%= image_tag item.photo.variant(resize_to_fill: [200, 150]), class: "rounded" %>
+      </div>
+    <% end %>
+  </div>
+
+  <div class="mb-3">
+    <%= f.label :expiration_date, class: "form-label" %>
+    <%= f.date_field :expiration_date, class: "form-control", value: item.expiration_date || 7.days.from_now.to_date %>
+    <div class="form-text">When the poll expires. Defaults to 1 week from today.</div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <%= f.submit class: "btn btn-primary" %>
+    <%= link_to "Cancel", items_path, class: "btn btn-outline-secondary" %>
+  </div>
+<% end %>

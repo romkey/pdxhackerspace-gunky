@@ -1,0 +1,11 @@
+alice_mine:
+  item: pending_item
+  slack_user_id: U001
+  slack_username: alice
+  choice: 0
+
+bob_foster:
+  item: pending_item
+  slack_user_id: U002
+  slack_username: bob
+  choice: 1

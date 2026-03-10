@@ -1,0 +1,4 @@
+expire_items:
+  cron: "0 6 * * *"
+  class: ExpireItemsJob
+  description: "Auto-kill items with no votes past their expiration date"

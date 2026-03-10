@@ -1,0 +1,34 @@
+pending_item:
+  description: Old printer that might still work
+  location: Back shelf
+  expiration_date: <%= 7.days.from_now.to_date %>
+  disposition: 0
+  slack_message_ts:
+  slack_channel_id:
+
+claimed_item:
+  description: Vintage keyboard
+  location: Front desk
+  expiration_date: <%= 3.days.ago.to_date %>
+  disposition: 1
+  claimed_by: alice
+  slack_message_ts: "1234567890.123456"
+  slack_channel_id: "C0123456789"
+
+fostered_item:
+  description: Soldering station
+  location: Workshop
+  expiration_date: <%= 1.day.ago.to_date %>
+  disposition: 2
+
+killed_item:
+  description: Broken monitor
+  location: Storage room
+  expiration_date: <%= 2.days.ago.to_date %>
+  disposition: 3
+
+expired_no_votes:
+  description: Mystery cables
+  location: Box by the door
+  expiration_date: <%= 1.day.ago.to_date %>
+  disposition: 0
