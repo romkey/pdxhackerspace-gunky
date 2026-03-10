@@ -112,8 +112,8 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
 
     upload = Rack::Test::UploadedFile.new(file.path, "image/jpeg", true, original_filename: "item.jpg")
 
-    with_overridden_class_method(AgentSetting, :enabled?) { true } do
-      with_overridden_instance_method(OllamaService, :describe_image) { "AI found a red toolbox." } do
+    with_overridden_class_method(AgentSetting, :enabled?, -> { true }) do
+      with_overridden_instance_method(OllamaService, :describe_image, ->(_blob) { "AI found a red toolbox." }) do
         post preview_description_items_path, params: { photo: upload }
       end
     end
@@ -143,7 +143,7 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
 
     upload = Rack::Test::UploadedFile.new(file.path, "image/jpeg", true, original_filename: "item.jpg")
 
-    with_overridden_class_method(AgentSetting, :enabled?) { false } do
+    with_overridden_class_method(AgentSetting, :enabled?, -> { false }) do
       post preview_description_items_path, params: { photo: upload }
     end
 
@@ -212,7 +212,7 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
 
   private
 
-  def with_overridden_class_method(klass, method_name, &replacement)
+  def with_overridden_class_method(klass, method_name, replacement)
     original_method = klass.method(method_name)
     klass.define_singleton_method(method_name, &replacement)
     yield
@@ -220,7 +220,7 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     klass.define_singleton_method(method_name, original_method)
   end
 
-  def with_overridden_instance_method(klass, method_name, &replacement)
+  def with_overridden_instance_method(klass, method_name, replacement)
     original_method = klass.instance_method(method_name)
     klass.define_method(method_name, &replacement)
     yield
