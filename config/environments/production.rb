@@ -5,7 +5,7 @@ Rails.application.configure do
 
   # All secrets come from environment variables; no credentials file needed.
   config.require_master_key = false
-  config.secret_key_base = ENV.fetch("SECRET_KEY_BASE")
+  config.secret_key_base = ENV["SECRET_KEY_BASE"] || (ENV["SECRET_KEY_BASE_DUMMY"] && SecureRandom.hex(64))
 
   # Code is not reloaded between requests.
   config.enable_reloading = false
