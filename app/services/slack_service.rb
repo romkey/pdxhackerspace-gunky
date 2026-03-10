@@ -4,10 +4,11 @@ class SlackService
   end
 
   def post_item(item)
+    summary_text = item.display_description.to_s
     blocks = build_item_blocks(item)
     response = @client.chat_postMessage(
       channel: ENV.fetch("SLACK_CHANNEL_ID"),
-      text: "New item: #{item.description.truncate(100)}",
+      text: "New item: #{summary_text.truncate(100)}",
       blocks: blocks
     )
 
@@ -22,11 +23,12 @@ class SlackService
   def update_item_message(item)
     return unless item.posted_to_slack?
 
+    summary_text = item.display_description.to_s
     blocks = build_item_blocks(item)
     @client.chat_update(
       channel: item.slack_channel_id,
       ts: item.slack_message_ts,
-      text: "Item: #{item.description.truncate(100)}",
+      text: "Item: #{summary_text.truncate(100)}",
       blocks: blocks
     )
   end
@@ -35,10 +37,11 @@ class SlackService
 
   def build_item_blocks(item)
     blocks = []
+    summary_text = item.display_description.to_s
 
     blocks << {
       type: "header",
-      text: { type: "plain_text", text: item.description.truncate(150), emoji: true }
+      text: { type: "plain_text", text: summary_text.truncate(150), emoji: true }
     }
 
     fields = []
@@ -57,7 +60,7 @@ class SlackService
       blocks << {
         type: "image",
         image_url: photo_url,
-        alt_text: item.description.truncate(50)
+        alt_text: summary_text.truncate(50)
       }
     end
 

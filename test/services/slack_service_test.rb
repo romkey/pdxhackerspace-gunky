@@ -79,6 +79,30 @@ class SlackServiceTest < ActiveSupport::TestCase
     assert_includes claimed_field[:text], "alice"
   end
 
+  test "build_item_blocks uses fallback text when description is blank" do
+    item = Item.new(
+      description: "",
+      location: "Shelf A",
+      expiration_date: Date.current + 7.days
+    )
+    item.photo.attach(
+      io: StringIO.new("fake image bytes"),
+      filename: "item.jpg",
+      content_type: "image/jpeg"
+    )
+    item.save!
+
+    service = SlackService.new
+    blocks = service.send(:build_item_blocks, item)
+    header_block = blocks.find { |b| b[:type] == "header" }
+    image_block = blocks.find { |b| b[:type] == "image" }
+
+    assert_not_nil header_block
+    assert_not_empty header_block[:text][:text]
+    assert_not_nil image_block
+    assert_not_empty image_block[:alt_text]
+  end
+
   class FakeSlackClient
     attr_reader :post_calls, :update_calls
 
