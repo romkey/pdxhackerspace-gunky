@@ -433,6 +433,7 @@ DEPENDENCIES
   dotenv-rails
   image_processing (~> 1.2)
   importmap-rails
+  minitest
   pagy
   pg (~> 1.1)
   propshaft
