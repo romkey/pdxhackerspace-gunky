@@ -6,11 +6,13 @@ class SlackService
   def post_item(item)
     summary_text = item.display_description.to_s
     blocks = build_item_blocks(item)
-    response = @client.chat_postMessage(
+    payload = {
       channel: ENV.fetch("SLACK_CHANNEL_ID"),
       text: "New item: #{summary_text.truncate(100)}",
       blocks: blocks
-    )
+    }
+    log_payload("chat_postMessage", payload)
+    response = @client.chat_postMessage(**payload)
 
     item.update!(
       slack_message_ts: response["ts"],
@@ -25,15 +27,56 @@ class SlackService
 
     summary_text = item.display_description.to_s
     blocks = build_item_blocks(item)
-    @client.chat_update(
+    payload = {
       channel: item.slack_channel_id,
       ts: item.slack_message_ts,
       text: "Item: #{summary_text.truncate(100)}",
       blocks: blocks
-    )
+    }
+    log_payload("chat_update", payload)
+    @client.chat_update(**payload)
   end
 
   private
+
+  def log_payload(action, payload)
+    Rails.logger.info(
+      "SlackService #{action} payload: #{sanitized_payload_for_log(payload).to_json}"
+    )
+  end
+
+  def sanitized_payload_for_log(payload)
+    deep_transform(payload) do |key, value|
+      next value unless key == "image_url" && value.is_a?(String)
+      redact_image_url(value)
+    end
+  end
+
+  def redact_image_url(value)
+    uri = URI.parse(value)
+    safe_url = +"#{uri.scheme}://#{uri.host}"
+    safe_url << ":#{uri.port}" if uri.port && ![ 80, 443 ].include?(uri.port)
+    safe_url << uri.path.to_s
+    safe_url << "?[REDACTED_QUERY]" if uri.query.present?
+    safe_url << "#[REDACTED_FRAGMENT]" if uri.fragment.present?
+    safe_url
+  rescue URI::InvalidURIError
+    "[REDACTED_IMAGE_URL]"
+  end
+
+  def deep_transform(value, key = nil, &block)
+    case value
+    when Hash
+      value.each_with_object({}) do |(k, v), memo|
+        normalized_key = k.to_s
+        memo[k] = deep_transform(v, normalized_key, &block)
+      end
+    when Array
+      value.map { |entry| deep_transform(entry, key, &block) }
+    else
+      block.call(key, value)
+    end
+  end
 
   def build_item_blocks(item)
     blocks = []
