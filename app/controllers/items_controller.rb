@@ -1,12 +1,12 @@
 class ItemsController < ApplicationController
-  include Pagy::Backend
+  include Pagy::Method
 
   before_action :set_item, only: [ :show, :edit, :update, :destroy, :resolve ]
 
   def index
     items = Item.order(created_at: :desc)
     items = items.where(disposition: params[:disposition]) if params[:disposition].present?
-    @pagy, @items = pagy(items)
+    @pagy, @items = pagy(:offset, items)
   end
 
   def show

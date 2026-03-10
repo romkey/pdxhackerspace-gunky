@@ -45,7 +45,9 @@ services:
       RAILS_ENV: development
 
   test:
-    build: .
+    build:
+      context: .
+      target: test
     command: bash -c "bin/rails db:test:prepare && bin/rails test"
     volumes:
       - .:/rails

@@ -37,12 +37,10 @@ RUN apt-get update -qq && \
 
 # Install JavaScript dependencies
 ARG NODE_VERSION=25.8.0
-ARG YARN_VERSION=latest
 ENV PATH=/usr/local/node/bin:$PATH
 RUN curl -sL https://github.com/nodenv/node-build/archive/master.tar.gz | tar xz -C /tmp/ && \
     /tmp/node-build-master/bin/node-build "${NODE_VERSION}" /usr/local/node && \
     rm -rf /tmp/node-build-master
-RUN corepack enable && yarn set version $YARN_VERSION
 
 # Install application gems
 COPY vendor/* ./vendor/
@@ -54,8 +52,8 @@ RUN bundle install && \
     bundle exec bootsnap precompile -j 1 --gemfile
 
 # Install node modules
-COPY package.json yarn.lock ./
-RUN yarn install --immutable
+COPY package.json package-lock.json ./
+RUN npm ci
 
 # Copy application code
 COPY . .
@@ -70,6 +68,17 @@ RUN SECRET_KEY_BASE_DUMMY=1 ./bin/rails assets:precompile
 
 RUN rm -rf node_modules
 
+
+# Test stage: includes Node, dev/test gems, and full source
+FROM build AS test
+
+ENV RAILS_ENV="test" \
+    BUNDLE_DEPLOYMENT="" \
+    BUNDLE_WITHOUT=""
+
+RUN bundle install
+ENTRYPOINT ["/rails/bin/docker-entrypoint"]
+CMD ["bin/rails", "test"]
 
 # Final stage for app image
 FROM base
