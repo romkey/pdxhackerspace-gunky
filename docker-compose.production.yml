@@ -1,0 +1,58 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-gunky}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+
+  web:
+    image: ghcr.io/romkey/pdxhackerspace-gunky:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "${PORT:-80}:80"
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - storage:/rails/storage
+    environment:
+      RAILS_ENV: production
+      RAILS_MASTER_KEY: ${RAILS_MASTER_KEY:?Set RAILS_MASTER_KEY}
+      DATABASE_URL: postgres://${POSTGRES_USER:-gunky}:${POSTGRES_PASSWORD}@db:5432/gunky_production
+      REDIS_URL: redis://redis:6379/0
+      RAILS_SERVE_STATIC_FILES: "true"
+      RAILS_LOG_TO_STDOUT: "true"
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN}
+      SLACK_CHANNEL_ID: ${SLACK_CHANNEL_ID}
+      SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET}
+      APP_HOST: ${APP_HOST:-localhost}
+
+  sidekiq:
+    image: ghcr.io/romkey/pdxhackerspace-gunky:${IMAGE_TAG:-latest}
+    command: bundle exec sidekiq
+    restart: unless-stopped
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - storage:/rails/storage
+    environment:
+      RAILS_ENV: production
+      RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
+      DATABASE_URL: postgres://${POSTGRES_USER:-gunky}:${POSTGRES_PASSWORD}@db:5432/gunky_production
+      REDIS_URL: redis://redis:6379/0
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN}
+      SLACK_CHANNEL_ID: ${SLACK_CHANNEL_ID}
+      SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET}
+      APP_HOST: ${APP_HOST:-localhost}
+
+volumes:
+  postgres_data:
+  storage:
