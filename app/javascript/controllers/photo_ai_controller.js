@@ -1,19 +1,25 @@
 import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
-  static targets = ["description", "photoInput", "status"]
+  static targets = ["description", "photoInput", "status", "preview", "previewWrapper"]
   static values = {
     uploadUrl: String
   }
 
   connect() {
     this.originalPhotoInputName = this.photoInputTarget.name
+    this.previewObjectUrl = null
+  }
+
+  disconnect() {
+    this.revokePreviewObjectUrl()
   }
 
   async selected() {
     const file = this.photoInputTarget.files[0]
     if (!file) return
 
+    this.showPreview(file)
     this.photoInputTarget.name = this.originalPhotoInputName
     this.removeHiddenPhotoField()
 
@@ -89,5 +95,21 @@ export default class extends Controller {
   updateStatus(message, isError = false) {
     this.statusTarget.textContent = message
     this.statusTarget.classList.toggle("text-danger", isError)
+  }
+
+  showPreview(file) {
+    if (!this.hasPreviewTarget || !this.hasPreviewWrapperTarget) return
+
+    this.revokePreviewObjectUrl()
+    this.previewObjectUrl = URL.createObjectURL(file)
+    this.previewTarget.src = this.previewObjectUrl
+    this.previewWrapperTarget.classList.remove("d-none")
+  }
+
+  revokePreviewObjectUrl() {
+    if (this.previewObjectUrl) {
+      URL.revokeObjectURL(this.previewObjectUrl)
+      this.previewObjectUrl = null
+    }
   }
 }

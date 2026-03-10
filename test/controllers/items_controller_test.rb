@@ -73,6 +73,22 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Item was successfully created.", flash[:notice]
   end
 
+  test "create allows blank description when pre-uploaded signed photo is provided" do
+    blob = ActiveStorage::Blob.create_and_upload!(
+      io: StringIO.new("fake image bytes"),
+      filename: "item.jpg",
+      content_type: "image/jpeg"
+    )
+
+    assert_difference "Item.count", 1 do
+      post items_path, params: { item: { description: "", photo: blob.signed_id } }
+    end
+
+    created_item = Item.last
+    assert created_item.photo.attached?
+    assert_redirected_to item_path(created_item)
+  end
+
   test "create sets default expiration" do
     post items_path, params: { item: { description: "New junk" } }
     assert_equal 7.days.from_now.to_date, Item.last.expiration_date

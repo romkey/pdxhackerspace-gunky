@@ -45,8 +45,10 @@ class Item < ApplicationRecord
   end
 
   def description_or_photo_present
-    if description.blank? && !photo.attached?
-      errors.add(:description, "is required when no photo is provided")
-    end
+    return if description.present?
+    return if photo.attached?
+    return if attachment_changes["photo"].present?
+
+    errors.add(:description, "is required when no photo is provided")
   end
 end
