@@ -51,14 +51,14 @@ class SlackInteractionsController < ApplicationController
   end
 
   def verify_slack_signature
-    signing_secret = ENV["SLACK_SIGNING_SECRET"]
+    signing_secret = ENV["SLACK_SIGNING_SECRET"].to_s.strip
     if signing_secret.blank?
       Rails.logger.warn("Slack signature verification skipped: SLACK_SIGNING_SECRET is not configured")
       return
     end
 
-    timestamp = request.headers["X-Slack-Request-Timestamp"]
-    signature = request.headers["X-Slack-Signature"].to_s
+    timestamp = request.headers["X-Slack-Request-Timestamp"].to_s.strip
+    signature = request.headers["X-Slack-Signature"].to_s.strip
 
     if timestamp.blank?
       log_signature_failure(
@@ -94,8 +94,7 @@ class SlackInteractionsController < ApplicationController
       return
     end
 
-    body = request.body.read
-    request.body.rewind
+    body = request.raw_post.to_s
 
     sig_basestring = "v0:#{timestamp}:#{body}"
     expected_signature = "v0=#{OpenSSL::HMAC.hexdigest('SHA256', signing_secret, sig_basestring)}"

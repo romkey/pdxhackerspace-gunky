@@ -1,4 +1,5 @@
 require "test_helper"
+require "cgi"
 
 class SlackInteractionsControllerTest < ActionDispatch::IntegrationTest
   setup do
@@ -83,6 +84,29 @@ class SlackInteractionsControllerTest < ActionDispatch::IntegrationTest
          }
 
     assert_response :unauthorized
+  end
+
+  test "accepts request with valid signature" do
+    ENV["SLACK_SIGNING_SECRET"] = "test_secret"
+    payload = build_payload(action_id: "vote_mine", item_id: @item.id, user_id: "U123", username: "signeduser")
+    encoded_payload = "payload=#{CGI.escape(payload.to_json)}"
+    timestamp = Time.now.to_i.to_s
+    signature = "v0=#{OpenSSL::HMAC.hexdigest('SHA256', ENV['SLACK_SIGNING_SECRET'], "v0:#{timestamp}:#{encoded_payload}")}"
+
+    stub_slack_update do
+      assert_difference "Vote.count", 1 do
+        post slack_interactions_path,
+             params: encoded_payload,
+             headers: {
+               "CONTENT_TYPE" => "application/x-www-form-urlencoded",
+               "X-Slack-Request-Timestamp" => timestamp,
+               "X-Slack-Signature" => signature
+             }
+      end
+    end
+
+    assert_response :ok
+    assert_equal "U123", Vote.last.slack_user_id
   end
 
   test "rejects request with missing signature header" do
