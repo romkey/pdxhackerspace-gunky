@@ -109,8 +109,9 @@ class SlackService
 
     vote_parts = []
     mine_voters = item.mine_voter_usernames
+    foster_voters = item.foster_voter_usernames
     vote_parts << "Mine: #{mine_voters.join(', ')}" if mine_voters.any?
-    vote_parts << "Foster: #{item.foster_vote_count}" if item.foster_vote_count.positive?
+    vote_parts << "Foster: #{foster_voters.join(', ')}" if foster_voters.any?
     vote_parts << "Kill: #{item.kill_vote_count}" if item.kill_vote_count.positive?
 
     if vote_parts.any?

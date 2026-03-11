@@ -31,13 +31,15 @@ class Item < ApplicationRecord
   end
 
   def mine_voter_usernames
-    seen_user_ids = {}
-    votes.mine.order(:created_at, :id).each_with_object([]) do |vote, usernames|
-      next if seen_user_ids[vote.slack_user_id]
+    unique_voter_usernames_for(:mine)
+  end
 
-      seen_user_ids[vote.slack_user_id] = true
-      usernames << vote.slack_username
-    end
+  def foster_voter_usernames
+    unique_voter_usernames_for(:foster)
+  end
+
+  def kill_voter_usernames
+    unique_voter_usernames_for(:kill)
   end
 
   def foster_vote_count
@@ -68,6 +70,16 @@ class Item < ApplicationRecord
   end
 
   private
+
+  def unique_voter_usernames_for(choice)
+    seen_user_ids = {}
+    votes.public_send(choice).order(:created_at, :id).each_with_object([]) do |vote, usernames|
+      next if seen_user_ids[vote.slack_user_id]
+
+      seen_user_ids[vote.slack_user_id] = true
+      usernames << vote.slack_username
+    end
+  end
 
   def set_default_expiration
     self.expiration_date ||= 7.days.from_now.to_date

@@ -67,6 +67,15 @@ class ItemTest < ActiveSupport::TestCase
     assert_equal [ "alice", "zoe" ], item.mine_voter_usernames
   end
 
+  test "foster_voter_usernames returns unique usernames in vote order" do
+    item = items(:pending_item)
+    item.votes.create!(slack_user_id: "U010", slack_username: "claire", choice: :foster)
+    item.votes.create!(slack_user_id: "U010", slack_username: "claire", choice: :foster)
+    item.votes.create!(slack_user_id: "U011", slack_username: "dave", choice: :foster)
+
+    assert_equal [ "bob", "claire", "dave" ], item.foster_voter_usernames
+  end
+
   test "resolve_from_votes! assigns to first mine voter" do
     item = items(:expired_no_votes)
     item.votes.create!(slack_user_id: "U020", slack_username: "first", choice: :mine)

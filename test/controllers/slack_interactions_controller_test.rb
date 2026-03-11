@@ -40,6 +40,24 @@ class SlackInteractionsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "updates Slack message on every vote" do
+    update_calls = 0
+    original = SlackService.instance_method(:update_item_message)
+    SlackService.define_method(:update_item_message) do |item|
+      update_calls += 1
+    end
+
+    first_payload = build_payload(action_id: "vote_mine", item_id: @item.id, user_id: "U100", username: "one")
+    second_payload = build_payload(action_id: "vote_foster", item_id: @item.id, user_id: "U101", username: "two")
+
+    post slack_interactions_path, params: { payload: first_payload.to_json }
+    post slack_interactions_path, params: { payload: second_payload.to_json }
+
+    assert_equal 2, update_calls
+  ensure
+    SlackService.define_method(:update_item_message, original)
+  end
+
   test "ignores vote on non-pending item" do
     resolved_item = items(:claimed_item)
     payload = build_payload(action_id: "vote_mine", item_id: resolved_item.id, user_id: "U999", username: "newuser")
