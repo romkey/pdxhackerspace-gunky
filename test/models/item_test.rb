@@ -61,15 +61,14 @@ class ItemTest < ActiveSupport::TestCase
 
   test "mine_voter_usernames returns unique usernames in vote order" do
     item = items(:pending_item)
-    item.votes.create!(slack_user_id: "U001", slack_username: "alice", choice: :mine)
+    item.votes.create!(slack_user_id: "U010", slack_username: "claire", choice: :mine)
     item.votes.create!(slack_user_id: "U009", slack_username: "zoe", choice: :mine)
 
-    assert_equal [ "alice", "zoe" ], item.mine_voter_usernames
+    assert_equal [ "alice", "claire", "zoe" ], item.mine_voter_usernames
   end
 
   test "foster_voter_usernames returns unique usernames in vote order" do
     item = items(:pending_item)
-    item.votes.create!(slack_user_id: "U010", slack_username: "claire", choice: :foster)
     item.votes.create!(slack_user_id: "U010", slack_username: "claire", choice: :foster)
     item.votes.create!(slack_user_id: "U011", slack_username: "dave", choice: :foster)
 

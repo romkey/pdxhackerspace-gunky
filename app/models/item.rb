@@ -51,7 +51,7 @@ class Item < ApplicationRecord
   end
 
   def resolve_from_votes!
-    mine_vote = votes.mine.order(:created_at, :id).first
+    mine_vote = votes.mine.order(:updated_at, :id).first
     if mine_vote
       update!(disposition: :mine, claimed_by: mine_vote.slack_username)
       return
@@ -73,7 +73,7 @@ class Item < ApplicationRecord
 
   def unique_voter_usernames_for(choice)
     seen_user_ids = {}
-    votes.public_send(choice).order(:created_at, :id).each_with_object([]) do |vote, usernames|
+    votes.public_send(choice).order(:updated_at, :id).each_with_object([]) do |vote, usernames|
       next if seen_user_ids[vote.slack_user_id]
 
       seen_user_ids[vote.slack_user_id] = true

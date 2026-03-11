@@ -23,9 +23,10 @@ class VoteTest < ActiveSupport::TestCase
     assert_not vote.valid?
   end
 
-  test "allows multiple votes per user per item" do
+  test "enforces one vote per user per item" do
     vote = Vote.new(item: items(:pending_item), slack_user_id: "U001", slack_username: "alice_dupe", choice: :kill)
-    assert vote.valid?
+    assert_not vote.valid?
+    assert_includes vote.errors[:slack_user_id], "has already been taken"
   end
 
   test "same user can vote on different items" do
