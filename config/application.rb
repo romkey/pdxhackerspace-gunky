@@ -29,5 +29,9 @@ module Gunky
     config.autoload_lib(ignore: %w[assets tasks])
 
     config.active_job.queue_adapter = :sidekiq
+
+    configured_tz = ENV.fetch("TZ", "UTC")
+    config.time_zone = ActiveSupport::TimeZone[configured_tz]&.name || "UTC"
+    config.active_record.default_timezone = :utc
   end
 end

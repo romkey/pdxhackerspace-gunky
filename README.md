@@ -24,6 +24,7 @@ Items that nobody votes on get auto-killed after a week. Items with votes are re
 ```bash
 cp .env.example .env
 # Edit .env with your Slack credentials
+# Optional: set TZ (for example, TZ=America/Los_Angeles) to control app timezone
 
 docker compose up -d db redis
 docker compose run --rm web bin/rails db:create db:migrate
