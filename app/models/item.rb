@@ -30,6 +30,35 @@ class Item < ApplicationRecord
     votes.group(:choice).count
   end
 
+  def mine_voter_usernames
+    seen_user_ids = {}
+    votes.mine.order(:created_at, :id).each_with_object([]) do |vote, usernames|
+      next if seen_user_ids[vote.slack_user_id]
+
+      seen_user_ids[vote.slack_user_id] = true
+      usernames << vote.slack_username
+    end
+  end
+
+  def foster_vote_count
+    votes.foster.count
+  end
+
+  def kill_vote_count
+    votes.kill.count
+  end
+
+  def resolve_from_votes!
+    mine_vote = votes.mine.order(:created_at, :id).first
+    if mine_vote
+      update!(disposition: :mine, claimed_by: mine_vote.slack_username)
+      return
+    end
+
+    disposition_to_set = foster_vote_count.positive? ? :foster : :kill
+    update!(disposition: disposition_to_set, claimed_by: nil)
+  end
+
   def expired?
     expiration_date.present? && expiration_date <= Date.current
   end

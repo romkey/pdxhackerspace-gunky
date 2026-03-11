@@ -40,9 +40,9 @@ class SlackInteractionsController < ApplicationController
       item = Item.find_by(id: item_id)
       next unless item&.pending?
 
-      vote = item.votes.find_or_initialize_by(slack_user_id: user["id"])
-      vote.update!(
-        slack_username: user["username"] || user["name"],
+      item.votes.create!(
+        slack_user_id: user["id"],
+        slack_username: user["username"].presence || user["name"].presence || user["id"],
         choice: choice
       )
 

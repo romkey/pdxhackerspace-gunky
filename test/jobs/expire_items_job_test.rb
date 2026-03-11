@@ -12,14 +12,28 @@ class ExpireItemsJobTest < ActiveJob::TestCase
     assert expired_item.kill?
   end
 
-  test "does not kill expired items that have votes" do
+  test "resolves expired items with mine votes to mine and first mine voter" do
     expired_item = items(:expired_no_votes)
-    expired_item.votes.create!(slack_user_id: "U999", slack_username: "voter", choice: :mine)
+    expired_item.votes.create!(slack_user_id: "U999", slack_username: "first_voter", choice: :mine)
+    expired_item.votes.create!(slack_user_id: "U888", slack_username: "second_voter", choice: :mine)
 
     ExpireItemsJob.perform_now
 
     expired_item.reload
-    assert expired_item.pending?
+    assert expired_item.mine?
+    assert_equal "first_voter", expired_item.claimed_by
+  end
+
+  test "resolves expired items with foster votes to foster even if kill has more votes" do
+    expired_item = items(:expired_no_votes)
+    expired_item.votes.create!(slack_user_id: "U001", slack_username: "alice", choice: :foster)
+    expired_item.votes.create!(slack_user_id: "U002", slack_username: "bob", choice: :kill)
+    expired_item.votes.create!(slack_user_id: "U003", slack_username: "carol", choice: :kill)
+
+    ExpireItemsJob.perform_now
+
+    expired_item.reload
+    assert expired_item.foster?
   end
 
   test "does not kill non-expired pending items" do

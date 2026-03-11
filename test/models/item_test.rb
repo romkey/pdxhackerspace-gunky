@@ -59,6 +59,39 @@ class ItemTest < ActiveSupport::TestCase
     assert_equal 1, summary["foster"]
   end
 
+  test "mine_voter_usernames returns unique usernames in vote order" do
+    item = items(:pending_item)
+    item.votes.create!(slack_user_id: "U001", slack_username: "alice", choice: :mine)
+    item.votes.create!(slack_user_id: "U009", slack_username: "zoe", choice: :mine)
+
+    assert_equal [ "alice", "zoe" ], item.mine_voter_usernames
+  end
+
+  test "resolve_from_votes! assigns to first mine voter" do
+    item = items(:expired_no_votes)
+    item.votes.create!(slack_user_id: "U020", slack_username: "first", choice: :mine)
+    item.votes.create!(slack_user_id: "U021", slack_username: "second", choice: :mine)
+
+    item.resolve_from_votes!
+    item.reload
+
+    assert item.mine?
+    assert_equal "first", item.claimed_by
+  end
+
+  test "resolve_from_votes! prefers foster when no mine votes and foster exists" do
+    item = items(:expired_no_votes)
+    item.votes.create!(slack_user_id: "U020", slack_username: "first", choice: :kill)
+    item.votes.create!(slack_user_id: "U021", slack_username: "second", choice: :kill)
+    item.votes.create!(slack_user_id: "U022", slack_username: "third", choice: :foster)
+
+    item.resolve_from_votes!
+    item.reload
+
+    assert item.foster?
+    assert_nil item.claimed_by
+  end
+
   test "expired_without_votes scope finds expired pending items with no votes" do
     results = Item.expired_without_votes
     assert_includes results, items(:expired_no_votes)

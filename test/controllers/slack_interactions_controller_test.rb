@@ -27,16 +27,16 @@ class SlackInteractionsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "updates existing vote when user votes again" do
+  test "records a new vote when user votes again" do
     stub_slack_update do
       payload = build_payload(action_id: "vote_kill", item_id: @item.id, user_id: "U001", username: "alice")
 
-      assert_no_difference "Vote.count" do
+      assert_difference "Vote.count", 1 do
         post slack_interactions_path, params: { payload: payload.to_json }
       end
 
       assert_response :ok
-      assert votes(:alice_mine).reload.kill?
+      assert_equal [ "mine", "kill" ], @item.votes.where(slack_user_id: "U001").order(:created_at).pluck(:choice)
     end
   end
 
