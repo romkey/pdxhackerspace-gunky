@@ -15,7 +15,7 @@ export default class extends Controller {
     this.revokePreviewObjectUrl()
   }
 
-  async selected() {
+  async selected(event) {
     const sourceInput = event.currentTarget
     const file = sourceInput.files[0]
     if (!file) return

@@ -85,6 +85,19 @@ class SlackInteractionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :unauthorized
   end
 
+  test "rejects request with missing signature header" do
+    ENV["SLACK_SIGNING_SECRET"] = "test_secret"
+    payload = build_payload(action_id: "vote_mine", item_id: @item.id, user_id: "U999", username: "newuser")
+
+    post slack_interactions_path,
+         params: { payload: payload.to_json },
+         headers: {
+           "X-Slack-Request-Timestamp" => Time.now.to_i.to_s
+         }
+
+    assert_response :unauthorized
+  end
+
   test "rejects request with stale timestamp" do
     ENV["SLACK_SIGNING_SECRET"] = "test_secret"
     payload = build_payload(action_id: "vote_mine", item_id: @item.id, user_id: "U999", username: "newuser")
@@ -97,6 +110,12 @@ class SlackInteractionsControllerTest < ActionDispatch::IntegrationTest
          }
 
     assert_response :unauthorized
+  end
+
+  test "returns bad request when payload is missing" do
+    post slack_interactions_path, params: {}
+
+    assert_response :bad_request
   end
 
   test "skips signature check when signing secret is not configured" do

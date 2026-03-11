@@ -40,14 +40,8 @@
 
   <div class="mb-3">
     <%= f.label :photo, class: "form-label" %>
-    <div class="mb-2">
-      <%= f.label :photo, "Take Photo", class: "form-label small text-muted" %>
-      <%= f.file_field :photo, class: "form-control", accept: "image/*", capture: "environment", data: { photo_ai_target: "photoInput", action: "change->photo-ai#selected" } %>
-    </div>
-    <div>
-      <%= f.label :photo, "Upload Photo", class: "form-label small text-muted" %>
-      <%= f.file_field :photo, class: "form-control", accept: "image/*", data: { photo_ai_target: "photoInput", action: "change->photo-ai#selected" } %>
-    </div>
+    <%= f.file_field :photo, class: "form-control", accept: "image/*", capture: "environment", data: { photo_ai_target: "photoInput", action: "change->photo-ai#selected" } %>
+    <div class="form-text">Use your camera or choose an existing image.</div>
     <div class="form-text" data-photo-ai-target="status"></div>
     <div class="mt-2 <%= "d-none" unless item.photo.attached? %>" data-photo-ai-target="previewWrapper">
       <img
