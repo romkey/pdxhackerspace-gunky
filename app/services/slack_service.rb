@@ -37,7 +37,64 @@ class SlackService
     @client.chat_update(**payload)
   end
 
+  def replace_expired_item_message(item)
+    delete_item_message(item) if item.posted_to_slack?
+    post_expired_item_message(item)
+  end
+
   private
+
+  def delete_item_message(item)
+    payload = {
+      channel: item.slack_channel_id,
+      ts: item.slack_message_ts
+    }
+    log_payload("chat_delete", payload)
+    @client.chat_delete(**payload)
+  end
+
+  def post_expired_item_message(item)
+    payload = {
+      channel: item.slack_channel_id.presence || ENV.fetch("SLACK_CHANNEL_ID"),
+      text: expired_item_text(item),
+      blocks: expired_item_blocks(item)
+    }
+    log_payload("chat_postMessage_expired", payload)
+    response = @client.chat_postMessage(**payload)
+
+    item.update!(
+      slack_message_ts: response["ts"],
+      slack_channel_id: response["channel"]
+    )
+  end
+
+  def expired_item_text(item)
+    mine_mentions = mentions_for(item.mine_voter_user_ids)
+    foster_mentions = mentions_for(item.foster_voter_user_ids)
+    item_label = item.display_description.to_s.truncate(100)
+
+    if mine_mentions.present?
+      "Expired item resolved to Mine: #{item_label}. #{mine_mentions} you won this item."
+    elsif foster_mentions.present?
+      "Expired item resolved to Foster: #{item_label}. #{foster_mentions} what should the space do with it?"
+    else
+      "Expired item resolved to Kill: #{item_label}. Please trash it."
+    end
+  end
+
+  def expired_item_blocks(item)
+    message = expired_item_text(item)
+    [
+      {
+        type: "section",
+        text: { type: "mrkdwn", text: message }
+      }
+    ]
+  end
+
+  def mentions_for(user_ids)
+    user_ids.map { |user_id| "<@#{user_id}>" }.join(" ")
+  end
 
   def log_payload(action, payload)
     Rails.logger.info(

@@ -134,14 +134,84 @@ class SlackServiceTest < ActiveSupport::TestCase
     assert_not_empty image_block[:alt_text]
   end
 
+  test "replace_expired_item_message deletes original post and posts mine mentions" do
+    item = Item.create!(
+      description: "Vintage lamp",
+      location: "Shelf B",
+      expiration_date: Date.current - 1.day,
+      disposition: :mine,
+      slack_channel_id: "C123",
+      slack_message_ts: "111.222"
+    )
+    item.votes.create!(slack_user_id: "U100", slack_username: "alice", choice: :mine)
+    item.votes.create!(slack_user_id: "U200", slack_username: "bob", choice: :mine)
+
+    service = SlackService.new
+    client = FakeSlackClient.new(ts: "333.444", channel: "C123")
+    service.instance_variable_set(:@client, client)
+
+    service.replace_expired_item_message(item)
+
+    assert_equal 1, client.delete_calls.size
+    assert_equal 1, client.post_calls.size
+    posted_text = client.post_calls.first[:text]
+    assert_includes posted_text, "<@U100>"
+    assert_includes posted_text, "<@U200>"
+    assert_includes posted_text, "won this item"
+  end
+
+  test "replace_expired_item_message posts foster mentions when no mine votes" do
+    item = Item.create!(
+      description: "Shop stool",
+      location: "Workshop",
+      expiration_date: Date.current - 1.day,
+      disposition: :foster,
+      slack_channel_id: "C123",
+      slack_message_ts: "111.222"
+    )
+    item.votes.create!(slack_user_id: "U300", slack_username: "carol", choice: :foster)
+
+    service = SlackService.new
+    client = FakeSlackClient.new(ts: "333.444", channel: "C123")
+    service.instance_variable_set(:@client, client)
+
+    service.replace_expired_item_message(item)
+
+    posted_text = client.post_calls.first[:text]
+    assert_includes posted_text, "<@U300>"
+    assert_includes posted_text, "what should the space do with it?"
+  end
+
+  test "replace_expired_item_message posts trash message when no mine or foster votes" do
+    item = Item.create!(
+      description: "Broken fan",
+      location: "Storage",
+      expiration_date: Date.current - 1.day,
+      disposition: :kill,
+      slack_channel_id: "C123",
+      slack_message_ts: "111.222"
+    )
+    item.votes.create!(slack_user_id: "U400", slack_username: "dave", choice: :kill)
+
+    service = SlackService.new
+    client = FakeSlackClient.new(ts: "333.444", channel: "C123")
+    service.instance_variable_set(:@client, client)
+
+    service.replace_expired_item_message(item)
+
+    posted_text = client.post_calls.first[:text]
+    assert_includes posted_text, "Please trash it."
+  end
+
   class FakeSlackClient
-    attr_reader :post_calls, :update_calls
+    attr_reader :post_calls, :update_calls, :delete_calls
 
     def initialize(ts: "0.0", channel: "C000")
       @ts = ts
       @channel = channel
       @post_calls = []
       @update_calls = []
+      @delete_calls = []
     end
 
     def chat_postMessage(**kwargs)
@@ -151,6 +221,11 @@ class SlackServiceTest < ActiveSupport::TestCase
 
     def chat_update(**kwargs)
       @update_calls << kwargs
+      {}
+    end
+
+    def chat_delete(**kwargs)
+      @delete_calls << kwargs
       {}
     end
   end

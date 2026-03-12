@@ -59,14 +59,14 @@ class ExpireItemsJobTest < ActiveJob::TestCase
     expired_item.update!(slack_message_ts: "123.456", slack_channel_id: "C999")
 
     update_called = false
-    original_method = SlackService.instance_method(:update_item_message)
-    SlackService.define_method(:update_item_message) { |_| update_called = true }
+    original_method = SlackService.instance_method(:replace_expired_item_message)
+    SlackService.define_method(:replace_expired_item_message) { |_| update_called = true }
 
     ExpireItemsJob.perform_now
 
     assert update_called
   ensure
-    SlackService.define_method(:update_item_message, original_method)
+    SlackService.define_method(:replace_expired_item_message, original_method)
   end
 
   test "continues processing when one item fails" do

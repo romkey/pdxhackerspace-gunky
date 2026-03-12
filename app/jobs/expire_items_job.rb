@@ -7,7 +7,7 @@ class ExpireItemsJob < ApplicationJob
 
     Item.expired_without_votes.find_each do |item|
       item.update!(disposition: :kill)
-      SlackService.new.update_item_message(item) if item.posted_to_slack?
+      SlackService.new.replace_expired_item_message(item) if item.posted_to_slack?
       auto_killed_count += 1
     rescue => e
       Rails.logger.error("Failed to expire item #{item.id}: #{e.message}")
@@ -15,7 +15,7 @@ class ExpireItemsJob < ApplicationJob
 
     Item.expired_with_votes.find_each do |item|
       item.resolve_from_votes!
-      SlackService.new.update_item_message(item) if item.posted_to_slack?
+      SlackService.new.replace_expired_item_message(item) if item.posted_to_slack?
       resolved_with_votes_count += 1
     rescue => e
       Rails.logger.error("Failed to resolve voted item #{item.id}: #{e.message}")
