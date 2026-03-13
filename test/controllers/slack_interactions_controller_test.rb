@@ -60,6 +60,64 @@ class SlackInteractionsControllerTest < ActionDispatch::IntegrationTest
     SlackService.define_method(:update_item_message, original)
   end
 
+  test "forfeit removes mine vote, re-resolves item, and reposts expired notice" do
+    item = Item.create!(
+      description: "Expired item",
+      expiration_date: Date.current - 1.day,
+      disposition: :mine,
+      claimed_by: "alice",
+      slack_channel_id: "C123",
+      slack_message_ts: "111.222"
+    )
+    item.votes.create!(slack_user_id: "U001", slack_username: "alice", choice: :mine)
+    item.votes.create!(slack_user_id: "U002", slack_username: "bob", choice: :foster)
+
+    repost_called = false
+    original = SlackService.instance_method(:replace_expired_item_message)
+    SlackService.define_method(:replace_expired_item_message) { |_| repost_called = true }
+
+    payload = build_payload(
+      action_id: "expired_forfeit:U001",
+      item_id: item.id,
+      user_id: "U001",
+      username: "alice"
+    )
+
+    post slack_interactions_path, params: { payload: payload.to_json }
+
+    assert_response :ok
+    assert repost_called
+    assert_nil item.votes.find_by(slack_user_id: "U001", choice: :mine)
+    assert item.reload.foster?
+  ensure
+    SlackService.define_method(:replace_expired_item_message, original)
+  end
+
+  test "forfeit from different user is ignored" do
+    item = Item.create!(
+      description: "Expired item",
+      expiration_date: Date.current - 1.day,
+      disposition: :mine,
+      claimed_by: "alice",
+      slack_channel_id: "C123",
+      slack_message_ts: "111.222"
+    )
+    item.votes.create!(slack_user_id: "U001", slack_username: "alice", choice: :mine)
+
+    payload = build_payload(
+      action_id: "expired_forfeit:U001",
+      item_id: item.id,
+      user_id: "U999",
+      username: "mallory"
+    )
+
+    post slack_interactions_path, params: { payload: payload.to_json }
+
+    assert_response :ok
+    assert item.votes.find_by(slack_user_id: "U001", choice: :mine).present?
+    assert item.reload.mine?
+  end
+
   test "ignores vote on non-pending item" do
     resolved_item = items(:claimed_item)
     payload = build_payload(action_id: "vote_mine", item_id: resolved_item.id, user_id: "U999", username: "newuser")

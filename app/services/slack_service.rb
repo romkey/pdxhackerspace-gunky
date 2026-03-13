@@ -74,26 +74,77 @@ class SlackService
     item_label = item.display_description.to_s.truncate(100)
 
     if mine_mentions.present?
-      "Expired item resolved to Mine: #{item_label}. #{mine_mentions} you won this item."
+      "\"#{item_label}\" has completed. #{mine_mentions} please pick this up within one week. If you cannot, let the next person know it's theirs. Please enjoy each item equally"
     elsif foster_mentions.present?
-      "Expired item resolved to Foster: #{item_label}. #{foster_mentions} what should the space do with it?"
+      "\"#{item_label}\" has completed. #{foster_mentions} what do you think the space should do with it?"
     else
-      "Expired item resolved to Kill: #{item_label}. Please trash it."
+      "\"#{item_label}\" has completed. Please trash it."
     end
   end
 
   def expired_item_blocks(item)
-    message = expired_item_text(item)
-    [
+    blocks = [
+      {
+        type: "header",
+        text: { type: "plain_text", text: "\"#{item.display_description.to_s.truncate(140)}\" has completed", emoji: true }
+      },
       {
         type: "section",
-        text: { type: "mrkdwn", text: message }
+        text: { type: "mrkdwn", text: expired_item_text(item) }
       }
     ]
+
+    if item.photo.attached?
+      blocks << {
+        type: "image",
+        image_url: Rails.application.routes.url_helpers.rails_blob_url(item.photo, **app_url_options),
+        alt_text: item.display_description.to_s.truncate(50)
+      }
+    end
+
+    item.mine_voter_user_ids.each do |user_id|
+      blocks << {
+        type: "actions",
+        block_id: "expired_actions_#{item.id}_#{user_id}",
+        elements: [
+          {
+            type: "button",
+            text: { type: "plain_text", text: "Forfeit" },
+            action_id: "expired_forfeit:#{user_id}",
+            value: item.id.to_s,
+            style: "danger"
+          },
+          {
+            type: "button",
+            text: { type: "plain_text", text: "Picked up" },
+            action_id: "expired_picked_up:#{user_id}",
+            value: item.id.to_s,
+            style: "primary"
+          }
+        ]
+      }
+    end
+
+    internal_url = item_internal_url(item)
+    if internal_url.present?
+      blocks << {
+        type: "context",
+        elements: [ { type: "mrkdwn", text: "Item link: #{internal_url}" } ]
+      }
+    end
+
+    blocks
   end
 
   def mentions_for(user_ids)
     user_ids.map { |user_id| "<@#{user_id}>" }.join(" ")
+  end
+
+  def item_internal_url(item)
+    base = ENV["APP_INTERNAL_URL"].to_s.strip
+    return nil if base.blank?
+
+    "#{base.chomp('/')}/items/#{item.id}"
   end
 
   def log_payload(action, payload)

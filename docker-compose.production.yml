@@ -33,6 +33,7 @@ services:
       SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET}
       APP_HOST: ${APP_HOST:-localhost}
       APP_PROTOCOL: ${APP_PROTOCOL:-https}
+      APP_INTERNAL_URL: ${APP_INTERNAL_URL:-}
 
   sidekiq:
     image: ghcr.io/romkey/pdxhackerspace-gunky:${IMAGE_TAG:-latest}
@@ -53,6 +54,7 @@ services:
       SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET}
       APP_HOST: ${APP_HOST:-localhost}
       APP_PROTOCOL: ${APP_PROTOCOL:-https}
+      APP_INTERNAL_URL: ${APP_INTERNAL_URL:-}
 
 volumes:
   postgres_data:

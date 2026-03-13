@@ -31,23 +31,63 @@ class SlackInteractionsController < ApplicationController
 
   def handle_block_actions(payload)
     payload["actions"].each do |action|
-      next unless action["action_id"]&.start_with?("vote_")
-
-      choice = action["action_id"].delete_prefix("vote_")
-      item_id = action["value"].to_i
-      user = payload["user"]
-
-      item = Item.find_by(id: item_id)
-      next unless item&.pending?
-
-      vote = item.votes.find_or_initialize_by(slack_user_id: user["id"])
-      vote.update!(
-        slack_username: user["username"].presence || user["name"].presence || user["id"],
-        choice: choice
-      )
-
-      SlackService.new.update_item_message(item)
+      action_id = action["action_id"].to_s
+      case
+      when action_id.start_with?("vote_")
+        handle_vote_action(payload, action)
+      when action_id.start_with?("expired_forfeit:")
+        handle_expired_forfeit_action(payload, action)
+      when action_id.start_with?("expired_picked_up:")
+        handle_expired_picked_up_action(payload, action)
+      end
     end
+  end
+
+  def handle_vote_action(payload, action)
+    choice = action["action_id"].delete_prefix("vote_")
+    item_id = action["value"].to_i
+    user = payload["user"]
+
+    item = Item.find_by(id: item_id)
+    return unless item&.pending?
+
+    vote = item.votes.find_or_initialize_by(slack_user_id: user["id"])
+    vote.update!(
+      slack_username: user["username"].presence || user["name"].presence || user["id"],
+      choice: choice
+    )
+
+    SlackService.new.update_item_message(item)
+  end
+
+  def handle_expired_forfeit_action(payload, action)
+    item_id = action["value"].to_i
+    target_user_id = action["action_id"].delete_prefix("expired_forfeit:")
+    acting_user_id = payload.dig("user", "id").to_s
+    return unless acting_user_id == target_user_id
+
+    item = Item.find_by(id: item_id)
+    return unless item
+
+    mine_vote = item.votes.find_by(slack_user_id: target_user_id, choice: :mine)
+    return unless mine_vote
+
+    mine_vote.destroy!
+    item.resolve_from_votes!
+
+    SlackService.new.replace_expired_item_message(item) if item.posted_to_slack?
+  end
+
+  def handle_expired_picked_up_action(payload, action)
+    item_id = action["value"].to_i
+    target_user_id = action["action_id"].delete_prefix("expired_picked_up:")
+    acting_user_id = payload.dig("user", "id").to_s
+    return unless acting_user_id == target_user_id
+
+    item = Item.find_by(id: item_id)
+    return unless item
+
+    Rails.logger.info("Expired item #{item.id}: #{acting_user_id} acknowledged pickup")
   end
 
   def verify_slack_signature

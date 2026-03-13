@@ -149,6 +149,7 @@ class SlackServiceTest < ActiveSupport::TestCase
     service = SlackService.new
     client = FakeSlackClient.new(ts: "333.444", channel: "C123")
     service.instance_variable_set(:@client, client)
+    ENV["APP_INTERNAL_URL"] = "https://internal.example"
 
     service.replace_expired_item_message(item)
 
@@ -157,7 +158,22 @@ class SlackServiceTest < ActiveSupport::TestCase
     posted_text = client.post_calls.first[:text]
     assert_includes posted_text, "<@U100>"
     assert_includes posted_text, "<@U200>"
-    assert_includes posted_text, "won this item"
+    assert_includes posted_text, "pick this up within one week"
+    assert_includes posted_text, "Please enjoy each item equally"
+    posted_blocks = client.post_calls.first[:blocks]
+    assert_equal "header", posted_blocks.first[:type]
+    actions_blocks = posted_blocks.select { |b| b[:type] == "actions" }
+    assert_equal 2, actions_blocks.size
+    action_ids = actions_blocks.flat_map { |b| b[:elements].map { |e| e[:action_id] } }
+    assert_includes action_ids, "expired_forfeit:U100"
+    assert_includes action_ids, "expired_picked_up:U100"
+    assert_includes action_ids, "expired_forfeit:U200"
+    assert_includes action_ids, "expired_picked_up:U200"
+    context_block = posted_blocks.find { |b| b[:type] == "context" }
+    assert_not_nil context_block
+    assert_includes context_block[:elements].first[:text], "https://internal.example/items/#{item.id}"
+  ensure
+    ENV.delete("APP_INTERNAL_URL")
   end
 
   test "replace_expired_item_message posts foster mentions when no mine votes" do
@@ -179,7 +195,7 @@ class SlackServiceTest < ActiveSupport::TestCase
 
     posted_text = client.post_calls.first[:text]
     assert_includes posted_text, "<@U300>"
-    assert_includes posted_text, "what should the space do with it?"
+    assert_includes posted_text, "what do you think the space should do with it?"
   end
 
   test "replace_expired_item_message posts trash message when no mine or foster votes" do
@@ -201,6 +217,32 @@ class SlackServiceTest < ActiveSupport::TestCase
 
     posted_text = client.post_calls.first[:text]
     assert_includes posted_text, "Please trash it."
+    assert_includes posted_text, "has completed"
+  end
+
+  test "replace_expired_item_message includes photo block when item has photo" do
+    item = Item.create!(
+      description: "Rusty bike",
+      location: "Hallway",
+      expiration_date: Date.current - 1.day,
+      disposition: :kill,
+      slack_channel_id: "C123",
+      slack_message_ts: "111.222"
+    )
+    item.photo.attach(
+      io: StringIO.new("fake image bytes"),
+      filename: "bike.jpg",
+      content_type: "image/jpeg"
+    )
+
+    service = SlackService.new
+    client = FakeSlackClient.new(ts: "333.444", channel: "C123")
+    service.instance_variable_set(:@client, client)
+
+    service.replace_expired_item_message(item)
+
+    image_block = client.post_calls.first[:blocks].find { |b| b[:type] == "image" }
+    assert_not_nil image_block
   end
 
   class FakeSlackClient

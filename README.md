@@ -43,6 +43,7 @@ The app will be available at http://localhost:3000.
 6. Copy the **Signing Secret** from **Basic Information** to `SLACK_SIGNING_SECRET` in `.env`
 7. Set `SLACK_CHANNEL_ID` to the channel where polls should be posted
 8. Set `APP_HOST` for image URLs used in Slack messages (host or host:port). Optionally set `APP_PROTOCOL` (`http` or `https`).
+9. Set `APP_INTERNAL_URL` to the full base URL used in expiry outcome Slack links (for example `https://gunky.example.org`).
 
 ### Running Tests
 
