@@ -245,12 +245,34 @@ class SlackServiceTest < ActiveSupport::TestCase
     assert_not_nil image_block
   end
 
+  test "replace_expired_item_message still posts when delete fails" do
+    item = Item.create!(
+      description: "Heavy monitor",
+      location: "Storage",
+      expiration_date: Date.current - 1.day,
+      disposition: :kill,
+      slack_channel_id: "C123",
+      slack_message_ts: "111.222"
+    )
+
+    service = SlackService.new
+    client = FakeSlackClient.new(ts: "333.444", channel: "C123", delete_error: RuntimeError.new("already deleted"))
+    service.instance_variable_set(:@client, client)
+
+    service.replace_expired_item_message(item)
+
+    assert_equal 1, client.delete_calls.size
+    assert_equal 1, client.post_calls.size
+    assert_equal "333.444", item.reload.slack_message_ts
+  end
+
   class FakeSlackClient
     attr_reader :post_calls, :update_calls, :delete_calls
 
-    def initialize(ts: "0.0", channel: "C000")
+    def initialize(ts: "0.0", channel: "C000", delete_error: nil)
       @ts = ts
       @channel = channel
+      @delete_error = delete_error
       @post_calls = []
       @update_calls = []
       @delete_calls = []
@@ -268,6 +290,8 @@ class SlackServiceTest < ActiveSupport::TestCase
 
     def chat_delete(**kwargs)
       @delete_calls << kwargs
+      raise @delete_error if @delete_error
+
       {}
     end
   end

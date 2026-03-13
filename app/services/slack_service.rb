@@ -38,7 +38,16 @@ class SlackService
   end
 
   def replace_expired_item_message(item)
-    delete_item_message(item) if item.posted_to_slack?
+    if item.posted_to_slack?
+      begin
+        delete_item_message(item)
+      rescue => e
+        Rails.logger.warn(
+          "SlackService replace_expired_item_message delete failed for item #{item.id}: #{e.class}: #{e.message}"
+        )
+      end
+    end
+
     post_expired_item_message(item)
   end
 
