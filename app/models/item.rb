@@ -38,6 +38,10 @@ class Item < ApplicationRecord
     unique_voter_user_ids_for(:mine)
   end
 
+  def mine_voters
+    unique_voters_for(:mine)
+  end
+
   def foster_voter_usernames
     unique_voter_usernames_for(:foster)
   end
@@ -96,6 +100,19 @@ class Item < ApplicationRecord
 
       seen_user_ids[vote.slack_user_id] = true
       user_ids << vote.slack_user_id
+    end
+  end
+
+  def unique_voters_for(choice)
+    seen_user_ids = {}
+    votes.public_send(choice).order(:updated_at, :id).each_with_object([]) do |vote, winners|
+      next if seen_user_ids[vote.slack_user_id]
+
+      seen_user_ids[vote.slack_user_id] = true
+      winners << {
+        slack_user_id: vote.slack_user_id,
+        slack_username: vote.slack_username
+      }
     end
   end
 

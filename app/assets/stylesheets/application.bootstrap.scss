@@ -1,2 +1,24 @@
 @import 'bootstrap/scss/bootstrap';
 @import 'bootstrap-icons/font/bootstrap-icons';
+
+/* Follow system dark mode and improve contrast for custom surfaces. */
+@media (prefers-color-scheme: dark) {
+  .card,
+  .table,
+  .dropdown-menu {
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05);
+  }
+
+  .nav-pills .nav-link:not(.active) {
+    color: var(--bs-secondary-color);
+  }
+
+  .nav-pills .nav-link:not(.active):hover {
+    color: var(--bs-body-color);
+    background-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .form-control::placeholder {
+    color: var(--bs-secondary-color);
+  }
+}

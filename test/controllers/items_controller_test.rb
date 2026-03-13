@@ -23,6 +23,26 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     assert_select "a.nav-link", text: "All"
   end
 
+  test "index shows winner actions for mine item" do
+    item = Item.create!(
+      description: "Desk lamp",
+      disposition: :mine,
+      claimed_by: "alice",
+      expiration_date: Date.current - 1.day
+    )
+    item.votes.create!(slack_user_id: "U111", slack_username: "alice", choice: :mine)
+    item.votes.create!(slack_user_id: "U222", slack_username: "bob", choice: :mine)
+
+    get items_path
+
+    assert_response :success
+    assert_select "h6", text: "Winners"
+    assert_select "form[action='#{winner_forfeit_item_path(item, slack_user_id: "U111")}']"
+    assert_select "form[action='#{winner_picked_up_item_path(item, slack_user_id: "U111")}']"
+    assert_select "form[action='#{winner_forfeit_item_path(item, slack_user_id: "U222")}']"
+    assert_select "form[action='#{winner_picked_up_item_path(item, slack_user_id: "U222")}']"
+  end
+
   # Show
 
   test "show returns success" do
@@ -224,6 +244,68 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to item_path(@item)
     assert_equal "Invalid disposition.", flash[:alert]
     assert @item.reload.pending?
+  end
+
+  test "winner_forfeit removes mine winner and falls back to foster when no mine remains" do
+    item = Item.create!(
+      description: "Shelf",
+      disposition: :mine,
+      claimed_by: "alice",
+      expiration_date: Date.current - 1.day,
+      slack_channel_id: "C123",
+      slack_message_ts: "111.222"
+    )
+    item.votes.create!(slack_user_id: "U111", slack_username: "alice", choice: :mine)
+    item.votes.create!(slack_user_id: "U222", slack_username: "bob", choice: :foster)
+
+    repost_called = false
+    original = SlackService.instance_method(:replace_expired_item_message)
+    SlackService.define_method(:replace_expired_item_message) { |_| repost_called = true }
+
+    post winner_forfeit_item_path(item), params: { slack_user_id: "U111" }
+
+    assert_redirected_to items_path
+    assert repost_called
+    assert_nil item.votes.find_by(slack_user_id: "U111", choice: :mine)
+    assert item.reload.foster?
+  ensure
+    SlackService.define_method(:replace_expired_item_message, original)
+  end
+
+  test "winner_forfeit promotes next mine winner when available" do
+    item = Item.create!(
+      description: "Camera",
+      disposition: :mine,
+      claimed_by: "alice",
+      expiration_date: Date.current - 1.day
+    )
+    item.votes.create!(slack_user_id: "U111", slack_username: "alice", choice: :mine)
+    item.votes.create!(slack_user_id: "U222", slack_username: "bob", choice: :mine)
+
+    post winner_forfeit_item_path(item), params: { slack_user_id: "U111" }
+
+    assert_redirected_to items_path
+    item.reload
+    assert item.mine?
+    assert_equal "bob", item.claimed_by
+  end
+
+  test "winner_picked_up marks selected winner as claimed_by" do
+    item = Item.create!(
+      description: "Toolbox",
+      disposition: :mine,
+      claimed_by: "alice",
+      expiration_date: Date.current - 1.day
+    )
+    item.votes.create!(slack_user_id: "U111", slack_username: "alice", choice: :mine)
+    item.votes.create!(slack_user_id: "U222", slack_username: "bob", choice: :mine)
+
+    post winner_picked_up_item_path(item), params: { slack_user_id: "U222" }
+
+    assert_redirected_to items_path
+    item.reload
+    assert item.mine?
+    assert_equal "bob", item.claimed_by
   end
 
   private

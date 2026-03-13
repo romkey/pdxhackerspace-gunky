@@ -12,6 +12,8 @@ Rails.application.routes.draw do
     member do
       patch :resolve
       post :describe
+      post :winner_forfeit
+      post :winner_picked_up
     end
   end
 

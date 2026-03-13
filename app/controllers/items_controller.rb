@@ -1,7 +1,7 @@
 class ItemsController < ApplicationController
   include Pagy::Method
 
-  before_action :set_item, only: [ :show, :edit, :update, :destroy, :resolve, :describe ]
+  before_action :set_item, only: [ :show, :edit, :update, :destroy, :resolve, :describe, :winner_forfeit, :winner_picked_up ]
 
   def index
     items = Item.order(created_at: :desc)
@@ -110,6 +110,31 @@ class ItemsController < ApplicationController
     redirect_to @item, notice: "Item resolved as #{disposition}."
   end
 
+  def winner_forfeit
+    winner = winner_vote_for(@item)
+    unless winner
+      redirect_to items_path, alert: "Winner vote not found."
+      return
+    end
+
+    winner.destroy!
+    @item.resolve_from_votes!
+    SlackService.new.replace_expired_item_message(@item) if @item.posted_to_slack?
+
+    redirect_to items_path, notice: "Removed #{winner.slack_username} from Mine winners."
+  end
+
+  def winner_picked_up
+    winner = winner_vote_for(@item)
+    unless winner
+      redirect_to items_path, alert: "Winner vote not found."
+      return
+    end
+
+    @item.update!(disposition: :mine, claimed_by: winner.slack_username)
+    redirect_to items_path, notice: "Marked #{winner.slack_username} as picked up."
+  end
+
   private
 
   def set_item
@@ -118,5 +143,9 @@ class ItemsController < ApplicationController
 
   def item_params
     params.require(:item).permit(:description, :location, :photo, :expiration_date)
+  end
+
+  def winner_vote_for(item)
+    item.votes.find_by(slack_user_id: params[:slack_user_id].to_s, choice: :mine)
   end
 end
