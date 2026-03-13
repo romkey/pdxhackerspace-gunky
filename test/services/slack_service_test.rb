@@ -160,8 +160,14 @@ class SlackServiceTest < ActiveSupport::TestCase
     assert_includes posted_text, "<@U200>"
     assert_includes posted_text, "pick this up within one week"
     assert_includes posted_text, "Please enjoy each item equally"
+    assert_includes posted_text, "https://internal.example/items/#{item.id}"
     posted_blocks = client.post_calls.first[:blocks]
     assert_equal "header", posted_blocks.first[:type]
+    winner_label_blocks = posted_blocks.select { |b| b[:type] == "section" && b[:text].present? && b[:text][:text].include?("Actions for:") }
+    assert_equal 2, winner_label_blocks.size
+    label_text = winner_label_blocks.map { |b| b[:text][:text] }.join(" ")
+    assert_includes label_text, "<@U100>"
+    assert_includes label_text, "<@U200>"
     actions_blocks = posted_blocks.select { |b| b[:type] == "actions" }
     assert_equal 2, actions_blocks.size
     action_ids = actions_blocks.flat_map { |b| b[:elements].map { |e| e[:action_id] } }

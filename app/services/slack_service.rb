@@ -81,13 +81,14 @@ class SlackService
     mine_mentions = mentions_for(item.mine_voter_user_ids)
     foster_mentions = mentions_for(item.foster_voter_user_ids)
     item_label = item.display_description.to_s.truncate(100)
+    link_suffix = expired_item_link_suffix(item)
 
     if mine_mentions.present?
-      "\"#{item_label}\" has completed. #{mine_mentions} please pick this up within one week. If you cannot, let the next person know it's theirs. Please enjoy each item equally"
+      "\"#{item_label}\" has completed. #{mine_mentions} please pick this up within one week. If you cannot, let the next person know it's theirs. Please enjoy each item equally#{link_suffix}"
     elsif foster_mentions.present?
-      "\"#{item_label}\" has completed. #{foster_mentions} what do you think the space should do with it?"
+      "\"#{item_label}\" has completed. #{foster_mentions} what do you think the space should do with it?#{link_suffix}"
     else
-      "\"#{item_label}\" has completed. Please trash it."
+      "\"#{item_label}\" has completed. Please trash it.#{link_suffix}"
     end
   end
 
@@ -111,7 +112,15 @@ class SlackService
       }
     end
 
-    item.mine_voter_user_ids.each do |user_id|
+    item.mine_voters.each do |winner|
+      user_id = winner[:slack_user_id]
+      username = winner[:slack_username]
+
+      blocks << {
+        type: "section",
+        text: { type: "mrkdwn", text: "*Actions for:* <@#{user_id}> (#{username})" }
+      }
+
       blocks << {
         type: "actions",
         block_id: "expired_actions_#{item.id}_#{user_id}",
@@ -154,6 +163,13 @@ class SlackService
     return nil if base.blank?
 
     "#{base.chomp('/')}/items/#{item.id}"
+  end
+
+  def expired_item_link_suffix(item)
+    internal_url = item_internal_url(item)
+    return "" if internal_url.blank?
+
+    " View item: #{internal_url}"
   end
 
   def log_payload(action, payload)
