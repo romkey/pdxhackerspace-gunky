@@ -14,14 +14,14 @@ class Item < ApplicationRecord
 
   scope :expired_without_votes, -> {
     pending
-      .where(expiration_date: ...Date.current)
+      .where(expiration_date: ..Date.current)
       .left_joins(:votes)
       .where(votes: { id: nil })
   }
 
   scope :expired_with_votes, -> {
     pending
-      .where(expiration_date: ...Date.current)
+      .where(expiration_date: ..Date.current)
       .joins(:votes)
       .distinct
   }

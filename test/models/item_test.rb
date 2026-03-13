@@ -113,6 +113,15 @@ class ItemTest < ActiveSupport::TestCase
     assert_not_includes results, items(:expired_no_votes)
   end
 
+  test "expired scopes include items expiring today" do
+    item = Item.create!(description: "Expires today", expiration_date: Date.current, disposition: :pending)
+
+    assert_includes Item.expired_without_votes, item
+
+    item.votes.create!(slack_user_id: "U777", slack_username: "today_voter", choice: :mine)
+    assert_includes Item.expired_with_votes, item
+  end
+
   test "expired_with_votes scope finds expired pending items that have votes" do
     items(:expired_no_votes).votes.create!(slack_user_id: "U999", slack_username: "tester", choice: :mine)
     results = Item.expired_with_votes
