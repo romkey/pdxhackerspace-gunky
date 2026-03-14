@@ -57,6 +57,13 @@
     <% if item.photo.attached? %>
       <div class="form-text mt-1">Current photo</div>
     <% end %>
+
+    <div class="mt-3 d-none" data-photo-ai-target="quickCreateWrapper">
+      <button type="submit" name="create_and_add_another" value="1" class="btn btn-success w-100">
+        Create Item & Add Another
+      </button>
+      <div class="form-text mt-1">Saves this item and jumps right back to a fresh New Item form.</div>
+    </div>
   </div>
 
   <div class="mb-3">

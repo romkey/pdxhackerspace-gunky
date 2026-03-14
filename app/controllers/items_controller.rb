@@ -30,7 +30,11 @@ class ItemsController < ApplicationController
           Rails.logger.info("AI agent disabled, skipping DescribeItemJob for item #{@item.id}")
         end
       end
-      redirect_to @item, notice: "Item was successfully created."
+      if params[:create_and_add_another].present?
+        redirect_to new_item_path, notice: "Item was successfully created. Add the next one."
+      else
+        redirect_to @item, notice: "Item was successfully created."
+      end
     else
       @locations = Location.sorted
       render :new, status: :unprocessable_entity

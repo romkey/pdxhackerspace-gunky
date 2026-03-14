@@ -1,7 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
-  static targets = ["description", "photoInput", "status", "preview", "previewWrapper"]
+  static targets = ["description", "photoInput", "status", "preview", "previewWrapper", "quickCreateWrapper"]
   static values = {
     uploadUrl: String
   }
@@ -9,6 +9,7 @@ export default class extends Controller {
   connect() {
     this.originalPhotoInputName = this.photoInputTargets[0]?.name || "item[photo]"
     this.previewObjectUrl = null
+    this.hideQuickCreate()
   }
 
   disconnect() {
@@ -34,6 +35,9 @@ export default class extends Controller {
 
       if (this.descriptionTarget.value.trim() === "" && data.description) {
         this.descriptionTarget.value = data.description
+        this.showQuickCreate()
+      } else {
+        this.hideQuickCreate()
       }
 
       if (data.description) {
@@ -130,5 +134,15 @@ export default class extends Controller {
     this.photoInputTargets.forEach((input) => {
       input.disabled = disabled
     })
+  }
+
+  showQuickCreate() {
+    if (!this.hasQuickCreateWrapperTarget) return
+    this.quickCreateWrapperTarget.classList.remove("d-none")
+  }
+
+  hideQuickCreate() {
+    if (!this.hasQuickCreateWrapperTarget) return
+    this.quickCreateWrapperTarget.classList.add("d-none")
   }
 }

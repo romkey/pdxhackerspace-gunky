@@ -93,6 +93,18 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Item was successfully created.", flash[:notice]
   end
 
+  test "create with add another redirects back to new item form" do
+    assert_difference "Item.count", 1 do
+      post items_path, params: {
+        item: { description: "Batch item", location: "Shelf A" },
+        create_and_add_another: "1"
+      }
+    end
+
+    assert_redirected_to new_item_path
+    assert_equal "Item was successfully created. Add the next one.", flash[:notice]
+  end
+
   test "create allows blank description when pre-uploaded signed photo is provided" do
     blob = ActiveStorage::Blob.create_and_upload!(
       io: StringIO.new("fake image bytes"),
