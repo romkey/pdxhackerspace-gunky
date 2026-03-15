@@ -34,6 +34,8 @@ services:
       APP_HOST: ${APP_HOST:-localhost}
       APP_PROTOCOL: ${APP_PROTOCOL:-https}
       APP_INTERNAL_URL: ${APP_INTERNAL_URL:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENDPOINT: ${SENTRY_ENDPOINT:-}
 
   sidekiq:
     image: ghcr.io/romkey/pdxhackerspace-gunky:${IMAGE_TAG:-latest}
@@ -55,6 +57,8 @@ services:
       APP_HOST: ${APP_HOST:-localhost}
       APP_PROTOCOL: ${APP_PROTOCOL:-https}
       APP_INTERNAL_URL: ${APP_INTERNAL_URL:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENDPOINT: ${SENTRY_ENDPOINT:-}
 
 volumes:
   postgres_data:

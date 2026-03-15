@@ -35,6 +35,8 @@ gem "image_processing", "~> 1.2"
 gem "redis", ">= 4.0.1"
 gem "sidekiq"
 gem "sidekiq-cron"
+gem "sentry-rails", "~> 6.4"
+gem "sentry-sidekiq", "~> 6.4"
 gem "slack-ruby-client"
 gem "pagy"
 gem "dotenv-rails", groups: [ :development, :test ]
@@ -63,3 +65,4 @@ group :test do
   gem "capybara"
   gem "selenium-webdriver"
 end
+

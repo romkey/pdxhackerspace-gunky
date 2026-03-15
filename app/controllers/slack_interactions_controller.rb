@@ -49,7 +49,12 @@ class SlackInteractionsController < ApplicationController
     user = payload["user"]
 
     item = Item.find_by(id: item_id)
-    return unless item&.pending?
+    unless item&.pending?
+      Rails.logger.info(
+        "Slack vote ignored for non-pending item (item_id=#{item_id}, disposition=#{item&.disposition.inspect}, user_id=#{user['id']})"
+      )
+      return
+    end
 
     vote = item.votes.find_or_initialize_by(slack_user_id: user["id"])
     vote.update!(
