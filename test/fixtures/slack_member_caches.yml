@@ -2,3 +2,5 @@ alice_cache:
   slack_user_id: U001
   display_name: Alice Display
   real_name: Alice Real
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>

@@ -10,7 +10,7 @@ module Settings
     end
 
     test "destroy removes a cache entry" do
-      cache_entry = slack_member_caches(:alice_cache)
+      cache_entry = SlackMemberCache.find_by!(slack_user_id: "U001")
 
       assert_difference "SlackMemberCache.count", -1 do
         delete settings_slack_member_cache_path(cache_entry)

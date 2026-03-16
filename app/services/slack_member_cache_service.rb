@@ -1,6 +1,8 @@
 class SlackMemberCacheService
   def initialize(client: nil)
-    @client = client || Slack::Web::Client.new(token: lookup_token)
+    @lookup_token = lookup_token
+    @injected_client = client.present?
+    @client = client || Slack::Web::Client.new(token: @lookup_token)
   end
 
   def resolve_name(slack_user_id, fallback_username: nil)
@@ -37,7 +39,7 @@ class SlackMemberCacheService
   private
 
   def fetch_user(slack_user_id)
-    return nil if lookup_token.blank?
+    return nil if @lookup_token.blank? && !@injected_client
 
     @client.users_info(user: slack_user_id)["user"]
   end
