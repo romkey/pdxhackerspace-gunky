@@ -39,12 +39,13 @@ The app will be available at http://localhost:3000.
 2. Under **OAuth & Permissions**, add the bot scopes: `chat:write`, `files:read`
 3. Install the app to your workspace
 4. Copy the **Bot User OAuth Token** to `SLACK_BOT_TOKEN` in `.env`
-5. Under **Interactivity & Shortcuts**, enable interactivity and set the request URL to `https://your-domain/slack/interactions`
-6. Copy the **Signing Secret** from **Basic Information** to `SLACK_SIGNING_SECRET` in `.env`
-7. Set `SLACK_CHANNEL_ID` to the channel where polls should be posted
-8. Set `APP_HOST` for image URLs used in Slack messages (host or host:port). Optionally set `APP_PROTOCOL` (`http` or `https`).
-9. Set `APP_INTERNAL_URL` to the full base URL used in expiry outcome Slack links (for example `https://gunky.example.org`).
-10. Optional: set `SENTRY_DSN` (or `SENTRY_ENDPOINT`) to enable Sentry error reporting for web and Sidekiq.
+5. Optional: set `SLACK_USER_LOOKUP_TOKEN` to a token with `users:read` if you want name lookups separate from the bot token
+6. Under **Interactivity & Shortcuts**, enable interactivity and set the request URL to `https://your-domain/slack/interactions`
+7. Copy the **Signing Secret** from **Basic Information** to `SLACK_SIGNING_SECRET` in `.env`
+8. Set `SLACK_CHANNEL_ID` to the channel where polls should be posted
+9. Set `APP_HOST` for image URLs used in Slack messages (host or host:port). Optionally set `APP_PROTOCOL` (`http` or `https`).
+10. Set `APP_INTERNAL_URL` to the full base URL used in expiry outcome Slack links (for example `https://gunky.example.org`).
+11. Optional: set `SENTRY_DSN` (or `SENTRY_ENDPOINT`) to enable Sentry error reporting for web and Sidekiq.
 
 ### Running Tests
 

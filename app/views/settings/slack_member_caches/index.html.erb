@@ -1,0 +1,44 @@
+<h2>Settings: Slack Member Cache</h2>
+
+<div class="mb-3">
+  <%= button_to "Refresh Items on Slack",
+    refresh_items_settings_slack_member_caches_path,
+    method: :post,
+    class: "btn btn-primary",
+    form: { data: { turbo_confirm: "Refresh all posted item messages in Slack?" } } %>
+</div>
+
+<% if @cache_entries.any? %>
+  <table class="table table-striped align-middle">
+    <thead>
+      <tr>
+        <th>Slack User ID</th>
+        <th>Display Name</th>
+        <th>Real Name</th>
+        <th>Preferred Name</th>
+        <th>Updated</th>
+        <th class="text-end">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @cache_entries.each do |entry| %>
+        <tr>
+          <td><code><%= entry.slack_user_id %></code></td>
+          <td><%= entry.display_name.presence || "-" %></td>
+          <td><%= entry.real_name.presence || "-" %></td>
+          <td><%= entry.preferred_name %></td>
+          <td><%= entry.updated_at.strftime("%Y-%m-%d %H:%M") %></td>
+          <td class="text-end">
+            <%= button_to "Delete",
+              settings_slack_member_cache_path(entry),
+              method: :delete,
+              class: "btn btn-sm btn-outline-danger",
+              form: { data: { turbo_confirm: "Delete cache entry for #{entry.slack_user_id}?" } } %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% else %>
+  <p class="text-muted">No cached Slack members yet.</p>
+<% end %>

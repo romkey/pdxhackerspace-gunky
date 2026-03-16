@@ -66,3 +66,5 @@ group :test do
   gem "selenium-webdriver"
 end
 
+
+gem "stackprof", "~> 0.2.28"

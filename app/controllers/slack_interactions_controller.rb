@@ -56,9 +56,14 @@ class SlackInteractionsController < ApplicationController
       return
     end
 
+    resolved_name = SlackMemberCacheService.new.resolve_name(
+      user["id"],
+      fallback_username: user["username"].presence || user["name"].presence || user["id"]
+    )
+
     vote = item.votes.find_or_initialize_by(slack_user_id: user["id"])
     vote.update!(
-      slack_username: user["username"].presence || user["name"].presence || user["id"],
+      slack_username: resolved_name,
       choice: choice
     )
 

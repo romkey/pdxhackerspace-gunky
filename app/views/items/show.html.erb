@@ -60,7 +60,7 @@
             <span class="badge <%= vote_badge_class(choice) %> me-2"><%= choice.capitalize %></span>
             <span class="fw-bold me-2"><%= count %></span>
             <small class="text-muted">
-              (<%= @item.votes.where(choice: choice).pluck(:slack_username).join(", ") %>)
+              (<%= @item.voter_usernames_for(choice).join(", ") %>)
             </small>
           </div>
         <% end %>

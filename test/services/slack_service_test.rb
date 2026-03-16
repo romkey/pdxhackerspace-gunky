@@ -69,7 +69,7 @@ class SlackServiceTest < ActiveSupport::TestCase
     context_block = blocks.find { |b| b[:type] == "context" }
     assert_not_nil context_block
     vote_text = context_block[:elements].first[:text]
-    assert_includes vote_text, "Mine: alice"
+    assert_includes vote_text, "Mine: Alice Display"
     assert_includes vote_text, "Foster: bob"
   end
 

@@ -13,17 +13,26 @@ class SlackInteractionsControllerTest < ActionDispatch::IntegrationTest
 
   test "creates a new vote from block action" do
     stub_slack_update do
-      payload = build_payload(action_id: "vote_mine", item_id: @item.id, user_id: "U999", username: "newuser")
+      original_resolve = SlackMemberCacheService.instance_method(:resolve_name)
+      begin
+        SlackMemberCacheService.define_method(:resolve_name) do |_id, fallback_username:|
+          "Resolved #{fallback_username}"
+        end
 
-      assert_difference "Vote.count", 1 do
-        post slack_interactions_path, params: { payload: payload.to_json }
+        payload = build_payload(action_id: "vote_mine", item_id: @item.id, user_id: "U999", username: "newuser")
+
+        assert_difference "Vote.count", 1 do
+          post slack_interactions_path, params: { payload: payload.to_json }
+        end
+
+        assert_response :ok
+        vote = Vote.last
+        assert_equal "U999", vote.slack_user_id
+        assert_equal "Resolved newuser", vote.slack_username
+        assert vote.mine?
+      ensure
+        SlackMemberCacheService.define_method(:resolve_name, original_resolve)
       end
-
-      assert_response :ok
-      vote = Vote.last
-      assert_equal "U999", vote.slack_user_id
-      assert_equal "newuser", vote.slack_username
-      assert vote.mine?
     end
   end
 
@@ -38,7 +47,7 @@ class SlackInteractionsControllerTest < ActionDispatch::IntegrationTest
       assert_response :ok
       vote = @item.votes.find_by!(slack_user_id: "U001")
       assert vote.kill?
-      assert_equal "alice", vote.slack_username
+      assert_equal "Alice Display", vote.slack_username
     end
   end
 

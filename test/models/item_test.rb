@@ -64,7 +64,7 @@ class ItemTest < ActiveSupport::TestCase
     item.votes.create!(slack_user_id: "U010", slack_username: "claire", choice: :mine)
     item.votes.create!(slack_user_id: "U009", slack_username: "zoe", choice: :mine)
 
-    assert_equal [ "alice", "claire", "zoe" ], item.mine_voter_usernames
+    assert_equal [ "Alice Display", "claire", "zoe" ], item.mine_voter_usernames
   end
 
   test "foster_voter_usernames returns unique usernames in vote order" do

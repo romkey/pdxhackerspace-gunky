@@ -20,6 +20,11 @@ Rails.application.routes.draw do
   namespace :settings do
     resources :locations, except: :show
     resource :agent, only: [ :show, :update ], controller: "agent"
+    resources :slack_member_caches, only: [ :index, :destroy ] do
+      collection do
+        post :refresh_items
+      end
+    end
   end
 
   post "slack/interactions", to: "slack_interactions#create"

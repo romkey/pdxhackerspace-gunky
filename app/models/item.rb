@@ -54,6 +54,10 @@ class Item < ApplicationRecord
     unique_voter_usernames_for(:kill)
   end
 
+  def voter_usernames_for(choice)
+    unique_voter_usernames_for(choice)
+  end
+
   def foster_vote_count
     votes.foster.count
   end
@@ -84,35 +88,45 @@ class Item < ApplicationRecord
   private
 
   def unique_voter_usernames_for(choice)
-    seen_user_ids = {}
-    votes.public_send(choice).order(:updated_at, :id).each_with_object([]) do |vote, usernames|
-      next if seen_user_ids[vote.slack_user_id]
+    unique_votes = unique_votes_for_choice(choice)
+    names_by_id = cached_names_by_slack_user_id(unique_votes.map(&:slack_user_id))
 
-      seen_user_ids[vote.slack_user_id] = true
-      usernames << vote.slack_username
+    unique_votes.map do |vote|
+      names_by_id[vote.slack_user_id] || vote.slack_username
     end
   end
 
   def unique_voter_user_ids_for(choice)
-    seen_user_ids = {}
-    votes.public_send(choice).order(:updated_at, :id).each_with_object([]) do |vote, user_ids|
-      next if seen_user_ids[vote.slack_user_id]
-
-      seen_user_ids[vote.slack_user_id] = true
-      user_ids << vote.slack_user_id
-    end
+    unique_votes_for_choice(choice).map(&:slack_user_id)
   end
 
   def unique_voters_for(choice)
+    unique_votes = unique_votes_for_choice(choice)
+    names_by_id = cached_names_by_slack_user_id(unique_votes.map(&:slack_user_id))
+
+    unique_votes.each_with_object([]) do |vote, winners|
+      winners << {
+        slack_user_id: vote.slack_user_id,
+        slack_username: names_by_id[vote.slack_user_id] || vote.slack_username
+      }
+    end
+  end
+
+  def unique_votes_for_choice(choice)
     seen_user_ids = {}
-    votes.public_send(choice).order(:updated_at, :id).each_with_object([]) do |vote, winners|
+    votes.public_send(choice).order(:updated_at, :id).each_with_object([]) do |vote, unique_votes|
       next if seen_user_ids[vote.slack_user_id]
 
       seen_user_ids[vote.slack_user_id] = true
-      winners << {
-        slack_user_id: vote.slack_user_id,
-        slack_username: vote.slack_username
-      }
+      unique_votes << vote
+    end
+  end
+
+  def cached_names_by_slack_user_id(slack_user_ids)
+    return {} if slack_user_ids.empty?
+
+    SlackMemberCache.where(slack_user_id: slack_user_ids).each_with_object({}) do |entry, names|
+      names[entry.slack_user_id] = entry.preferred_name
     end
   end
 
