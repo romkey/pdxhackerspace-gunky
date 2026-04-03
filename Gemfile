@@ -68,3 +68,6 @@ end
 
 
 gem "stackprof", "~> 0.2.28"
+
+# Thermal receipts sent to CUPS via lp(1)
+gem "prawn", "~> 2.5"

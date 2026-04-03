@@ -17,7 +17,7 @@ module Settings
     private
 
     def print_setting_params
-      params.require(:print_setting).permit(:thermal_printer_name, :paper_width_mm)
+      params.require(:print_setting).permit(:cups_queue, :paper_width_mm)
     end
   end
 end

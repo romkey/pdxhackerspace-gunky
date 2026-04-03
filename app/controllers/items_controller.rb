@@ -87,14 +87,39 @@ class ItemsController < ApplicationController
   end
 
   def print
-    @print_setting = PrintSetting.instance
-    render layout: "print"
+    setting = PrintSetting.instance
+    if setting.cups_queue.blank?
+      redirect_to @item, alert: "Set the CUPS printer queue in Settings → Thermal printer."
+      return
+    end
+
+    result = LpPrintService.new(printer: setting.cups_queue, paper_width_mm: setting.paper_width_mm).print_items([ @item ])
+    if result.success?
+      redirect_to @item, notice: "Receipt queued on #{setting.cups_queue}."
+    else
+      redirect_to @item, alert: "Print failed: #{result.error_message}"
+    end
   end
 
   def print_completed
-    @items = Item.where.not(disposition: :pending).order(:expiration_date, :id)
-    @print_setting = PrintSetting.instance
-    render layout: "print"
+    setting = PrintSetting.instance
+    if setting.cups_queue.blank?
+      redirect_to items_path, alert: "Set the CUPS printer queue in Settings → Thermal printer."
+      return
+    end
+
+    items = Item.where.not(disposition: :pending).order(:expiration_date, :id)
+    if items.empty?
+      redirect_to items_path, alert: "No completed items to print."
+      return
+    end
+
+    result = LpPrintService.new(printer: setting.cups_queue, paper_width_mm: setting.paper_width_mm).print_items(items)
+    if result.success?
+      redirect_to items_path, notice: "Queued #{items.size} receipt(s) on #{setting.cups_queue}."
+    else
+      redirect_to items_path, alert: "Print failed: #{result.error_message}"
+    end
   end
 
   def describe

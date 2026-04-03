@@ -7,11 +7,11 @@ Rails.application.routes.draw do
   resources :items do
     collection do
       post :preview_description
-      get :print_completed
+      post :print_completed
     end
 
     member do
-      get :print
+      post :print
       patch :resolve
       post :describe
       post :winner_forfeit

@@ -33,6 +33,10 @@ docker compose up
 
 The app will be available at http://localhost:3000.
 
+### Receipt printing (optional)
+
+Under **Settings → Thermal printer**, set the **CUPS printer queue** name from `lpstat -p` or `lpstat -a`. Item receipts are built as a PDF and submitted with the system **`lp -d`** command (the Docker image includes `cups-client`). If the app runs in a container, point it at your CUPS server with **`CUPS_SERVER`** (see `.env.example`).
+
 ### Slack Setup
 
 1. Create a new Slack app at https://api.slack.com/apps
@@ -66,6 +70,7 @@ docker compose run --rm test rubocop
 - Redis 7 / Sidekiq
 - Bootstrap 5.3
 - Stimulus / Turbo
+- Prawn (receipt PDFs for `lp`)
 
 ## Kipple?
 

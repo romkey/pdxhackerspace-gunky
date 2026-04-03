@@ -14,25 +14,25 @@
       <% end %>
 
       <div class="mb-3">
-        <%= f.label :thermal_printer_name, "Printer name (reference)", class: "form-label" %>
-        <%= f.text_field :thermal_printer_name, class: "form-control", placeholder: "e.g. Star TSP143III USB" %>
+        <%= f.label :cups_queue, "CUPS printer queue", class: "form-label" %>
+        <%= f.text_field :cups_queue, class: "form-control", placeholder: "e.g. Thermal_TSP100" %>
         <div class="form-text">
-          For your own notes. The browser print dialog still asks which printer to use—pick this device there.
+          Name shown by <code>lpstat -p</code> or <code>lpstat -a</code> — passed to <code>lp -d</code>.
+          Leave blank until the queue exists on the host (or container with CUPS client + <code>CUPS_SERVER</code>).
         </div>
       </div>
 
       <div class="mb-3">
         <%= f.label :paper_width_mm, "Paper width", class: "form-label" %>
         <%= f.select :paper_width_mm, PrintSetting::ALLOWED_PAPER_WIDTHS.map { |w| [ "#{w} mm", w ] }, {}, class: "form-select" %>
-        <div class="form-text">Common receipt rolls are 58&nbsp;mm or 80&nbsp;mm wide.</div>
+        <div class="form-text">Used for PDF page width sent to the printer.</div>
       </div>
 
       <div class="alert alert-secondary small mb-4">
-        <strong>Auto-cut between items.</strong>
-        “Print all completed” lays out each item as its own print page. Many thermal drivers can
-        <strong>cut after each page</strong> (wording varies: “Cut per page”, “Document cut”, etc.).
-        Enable that for your printer so one physical receipt prints per item. Pure browser printing cannot send raw ESC/POS
-        (e.g. <code>GS V 0</code>); the page break is the reliable hook for drivers.
+        <strong>Printing.</strong> Item receipts are generated as a PDF and submitted with the system
+        <code>lp</code> command. Each item is one PDF page so drivers that cut after each page still work.
+        The app image installs <code>cups-client</code>; point CUPS at your server if the app runs in Docker
+        (e.g. <code>CUPS_SERVER</code> in the environment).
       </div>
 
       <div class="d-flex gap-2">

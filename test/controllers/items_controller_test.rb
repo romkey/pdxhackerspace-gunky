@@ -70,23 +70,38 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     assert_select "select[name='disposition']", count: 0
   end
 
-  test "print renders thermal receipt" do
-    get print_item_path(@item)
-    assert_response :success
-    assert_select "article.thermal-receipt"
-    assert_select "h1", text: @item.display_description
+  test "print redirects when CUPS queue unset" do
+    PrintSetting.instance.update!(cups_queue: nil)
+    post print_item_path(@item)
+    assert_redirected_to item_path(@item)
+    assert_match(/settings/i, flash[:alert].to_s)
   end
 
-  test "print_completed renders one receipt per completed item" do
-    get print_completed_items_path
-    assert_response :success
-    completed_count = Item.where.not(disposition: :pending).count
-    assert_select "article.thermal-receipt", count: completed_count
+  test "print queues PDF when CUPS queue set" do
+    PrintSetting.instance.update!(cups_queue: "TestPrinter", paper_width_mm: 80)
+    post print_item_path(@item)
+    assert_redirected_to item_path(@item)
+    assert_match(/queued/i, flash[:notice].to_s)
   end
 
-  test "index links to print all completed" do
+  test "print_completed queues all completed items" do
+    PrintSetting.instance.update!(cups_queue: "TestPrinter", paper_width_mm: 80)
+    post print_completed_items_path
+    assert_redirected_to items_path
+    assert_match(/queued/i, flash[:notice].to_s)
+  end
+
+  test "print_completed redirects when no completed items" do
+    PrintSetting.instance.update!(cups_queue: "TestPrinter", paper_width_mm: 80)
+    Item.update_all(disposition: :pending)
+    post print_completed_items_path
+    assert_redirected_to items_path
+    assert_match(/no completed/i, flash[:alert].to_s)
+  end
+
+  test "index offers print all completed form" do
     get items_path
-    assert_select "a[href='#{print_completed_items_path}']"
+    assert_select "form[action='#{print_completed_items_path}']"
   end
 
   # New
