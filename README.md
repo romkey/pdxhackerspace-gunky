@@ -61,7 +61,7 @@ docker compose run --rm test rubocop
 
 ## Tech Stack
 
-- Rails 8.1.2 / Ruby 3.3.11
+- Rails 8.1.3 / Ruby 3.3.11
 - PostgreSQL 16
 - Redis 7 / Sidekiq
 - Bootstrap 5.3
