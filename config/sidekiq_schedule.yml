@@ -1,4 +1,4 @@
 expire_items:
-  cron: "55 23 * * *"
+  cron: "0 6 * * *"
   class: ExpireItemsJob
-  description: "Resolve items at end of expiration day"
+  description: "Resolve items at 6:00 on each expiration calendar day (see app timezone in initializer)"
