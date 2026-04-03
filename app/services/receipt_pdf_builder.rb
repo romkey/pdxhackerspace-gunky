@@ -55,11 +55,7 @@ class ReceiptPdfBuilder
     pdf.stroke_horizontal_rule
     pdf.move_down 8
     pdf.font_size(11) do
-      deadline = if item.pickup_deadline_date
-                   item.pickup_deadline_date.strftime("%B %d, %Y")
-                 else
-                   "N/A (no expiration date)"
-                 end
+      deadline = item.pickup_deadline_date&.strftime("%B %d, %Y") || "N/A (no expiration date)"
       pdf.text "Pickup / action deadline: #{deadline}", style: :bold, align: :center
       pdf.text "(One week after item end date)", size: 8, align: :center
     end
