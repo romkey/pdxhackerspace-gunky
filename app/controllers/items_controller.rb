@@ -1,7 +1,7 @@
 class ItemsController < ApplicationController
   include Pagy::Method
 
-  before_action :set_item, only: [ :show, :edit, :update, :destroy, :resolve, :describe, :winner_forfeit, :winner_picked_up ]
+  before_action :set_item, only: [ :show, :edit, :update, :destroy, :resolve, :describe, :winner_forfeit, :winner_picked_up, :print ]
 
   def index
     items = Item.order(created_at: :desc)
@@ -84,6 +84,17 @@ class ItemsController < ApplicationController
   def destroy
     @item.destroy
     redirect_to items_path, notice: "Item was successfully deleted."
+  end
+
+  def print
+    @print_setting = PrintSetting.instance
+    render layout: "print"
+  end
+
+  def print_completed
+    @items = Item.where.not(disposition: :pending).order(:expiration_date, :id)
+    @print_setting = PrintSetting.instance
+    render layout: "print"
   end
 
   def describe

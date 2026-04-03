@@ -7,9 +7,11 @@ Rails.application.routes.draw do
   resources :items do
     collection do
       post :preview_description
+      get :print_completed
     end
 
     member do
+      get :print
       patch :resolve
       post :describe
       post :winner_forfeit
@@ -20,6 +22,7 @@ Rails.application.routes.draw do
   namespace :settings do
     resources :locations, except: :show
     resource :agent, only: [ :show, :update ], controller: "agent"
+    resource :print, only: [ :show, :update ], controller: "print"
     resources :slack_member_caches, only: [ :index, :destroy ] do
       collection do
         post :refresh_items

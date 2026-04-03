@@ -1,0 +1,15 @@
+<% content_for :title, "Completed items — #{@items.size} receipt#{'s' unless @items.size == 1}" %>
+
+<% if @items.any? %>
+  <% @items.each_with_index do |item, i| %>
+    <%= render "thermal_receipt",
+          item: item,
+          print_setting: @print_setting,
+          last_receipt: i == @items.size - 1 %>
+  <% end %>
+<% else %>
+  <div class="thermal-receipt last-receipt">
+    <h1>No completed items</h1>
+    <p class="receipt-section">Resolve items as Mine, Foster, or Kill to print them here.</p>
+  </div>
+<% end %>

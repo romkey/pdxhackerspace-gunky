@@ -53,6 +53,22 @@ class ItemTest < ActiveSupport::TestCase
     assert_not items(:pending_item).posted_to_slack?
   end
 
+  test "completed? is false for pending and true for resolved" do
+    assert_not items(:pending_item).completed?
+    assert items(:claimed_item).completed?
+  end
+
+  test "pickup_deadline_date is one week after expiration" do
+    item = items(:claimed_item)
+    assert_equal item.expiration_date + 7.days, item.pickup_deadline_date
+  end
+
+  test "pickup_deadline_date is nil when expiration is nil" do
+    item = Item.create!(description: "No expiry", disposition: :kill)
+    item.update_column(:expiration_date, nil)
+    assert_nil item.reload.pickup_deadline_date
+  end
+
   test "vote_summary groups votes by choice" do
     summary = items(:pending_item).vote_summary
     assert_equal 1, summary["mine"]

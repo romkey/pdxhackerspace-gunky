@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title><%= content_for?(:title) ? yield(:title) : "Print" %> — Gunky</title>
+    <style>
+      :root {
+        --receipt-width: <%= @print_setting.paper_width_mm %>mm;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        padding: 1rem;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        background: #dee2e6;
+      }
+
+      .screen-only {
+        max-width: 36rem;
+        margin: 0 auto 1.5rem;
+        padding: 0.75rem 1rem;
+        background: #fff;
+        border-radius: 0.375rem;
+        border: 1px solid #ced4da;
+        font-size: 0.875rem;
+      }
+
+      .thermal-receipt {
+        width: var(--receipt-width);
+        max-width: 100%;
+        margin: 0 auto 1.5rem;
+        padding: 6mm 4mm;
+        background: #fff;
+        color: #000;
+        border: 1px dashed #adb5bd;
+      }
+
+      .thermal-receipt h1 {
+        margin: 0 0 4mm;
+        font-size: 16pt;
+        line-height: 1.15;
+        font-weight: 800;
+        text-align: center;
+        word-break: break-word;
+      }
+
+      .thermal-receipt .receipt-photo {
+        display: block;
+        width: 100%;
+        height: auto;
+        margin: 0 0 4mm;
+        object-fit: contain;
+        image-rendering: auto;
+      }
+
+      .thermal-receipt .receipt-photo-placeholder {
+        width: 100%;
+        padding: 12mm 4mm;
+        margin: 0 0 4mm;
+        text-align: center;
+        font-size: 11pt;
+        border: 1px dashed #999;
+        color: #555;
+      }
+
+      .thermal-receipt .receipt-section {
+        margin: 0 0 3mm;
+        font-size: 10pt;
+        line-height: 1.35;
+      }
+
+      .thermal-receipt .receipt-label {
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 8pt;
+        letter-spacing: 0.04em;
+        color: #333;
+        margin-bottom: 1mm;
+      }
+
+      .thermal-receipt .receipt-deadline {
+        margin-top: 4mm;
+        padding-top: 3mm;
+        border-top: 2px dashed #000;
+        font-size: 11pt;
+        font-weight: 700;
+        text-align: center;
+      }
+
+      @media print {
+        body {
+          background: #fff;
+          padding: 0;
+        }
+
+        .screen-only {
+          display: none !important;
+        }
+
+        .thermal-receipt {
+          border: none;
+          margin: 0 auto;
+          padding: 4mm 3mm;
+        }
+
+        .thermal-receipt:not(.last-receipt) {
+          page-break-after: always;
+          break-after: page;
+        }
+
+        .thermal-receipt.last-receipt {
+          page-break-after: auto;
+          break-after: auto;
+        }
+      }
+
+      @page {
+        margin: 2mm;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="screen-only">
+      <strong>Printing</strong>
+      <% if @print_setting.thermal_printer_name.present? %>
+        Use printer: <em><%= @print_setting.thermal_printer_name %></em>.
+      <% else %>
+        Choose your thermal printer in the print dialog.
+      <% end %>
+      Use <kbd>Cmd+P</kbd> / <kbd>Ctrl+P</kbd>. For auto-cut between items, enable “cut after each page” (or similar) in your driver if available.
+    </div>
+    <%= yield %>
+  </body>
+</html>

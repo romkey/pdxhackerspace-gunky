@@ -1,6 +1,13 @@
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h1>Items</h1>
-  <%= link_to "New Item", new_item_path, class: "btn btn-primary" %>
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+  <h1 class="mb-0">Items</h1>
+  <div class="d-flex flex-wrap gap-2">
+    <%= link_to "Print all completed",
+          print_completed_items_path,
+          class: "btn btn-outline-secondary",
+          target: "_blank",
+          rel: "noopener" %>
+    <%= link_to "New Item", new_item_path, class: "btn btn-primary" %>
+  </div>
 </div>
 
 <ul class="nav nav-pills mb-4">

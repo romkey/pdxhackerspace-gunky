@@ -81,6 +81,16 @@ class Item < ApplicationRecord
     expiration_date.present? && expiration_date <= Date.current
   end
 
+  def completed?
+    !pending?
+  end
+
+  def pickup_deadline_date
+    return nil if expiration_date.blank?
+
+    expiration_date + 7.days
+  end
+
   def posted_to_slack?
     slack_message_ts.present?
   end

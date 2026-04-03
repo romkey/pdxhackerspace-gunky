@@ -70,6 +70,25 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     assert_select "select[name='disposition']", count: 0
   end
 
+  test "print renders thermal receipt" do
+    get print_item_path(@item)
+    assert_response :success
+    assert_select "article.thermal-receipt"
+    assert_select "h1", text: @item.display_description
+  end
+
+  test "print_completed renders one receipt per completed item" do
+    get print_completed_items_path
+    assert_response :success
+    completed_count = Item.where.not(disposition: :pending).count
+    assert_select "article.thermal-receipt", count: completed_count
+  end
+
+  test "index links to print all completed" do
+    get items_path
+    assert_select "a[href='#{print_completed_items_path}']"
+  end
+
   # New
 
   test "new returns success" do
