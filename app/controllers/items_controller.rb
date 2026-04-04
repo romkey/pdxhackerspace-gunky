@@ -33,7 +33,7 @@ class ItemsController < ApplicationController
       if params[:create_and_add_another].present?
         redirect_to new_item_path, notice: "Item was successfully created. Add the next one."
       else
-        redirect_to @item, notice: "Item was successfully created."
+        redirect_to item_path(@item), notice: "Item was successfully created."
       end
     else
       @locations = Location.sorted
@@ -74,7 +74,7 @@ class ItemsController < ApplicationController
 
   def update
     if @item.update(item_params)
-      redirect_to @item, notice: "Item was successfully updated."
+      redirect_to item_path(@item), notice: "Item was successfully updated."
     else
       @locations = Location.sorted
       render :edit, status: :unprocessable_entity
@@ -89,15 +89,15 @@ class ItemsController < ApplicationController
   def print
     setting = PrintSetting.instance
     if setting.cups_queue.blank?
-      redirect_to @item, alert: "Set the CUPS printer queue in Settings → Thermal printer."
+      redirect_to item_path(@item), alert: "Set the CUPS printer queue in Settings → Thermal printer."
       return
     end
 
     result = LpPrintService.new(printer: setting.cups_queue, paper_width_mm: setting.paper_width_mm).print_items([ @item ])
     if result.success?
-      redirect_to @item, notice: "Receipt queued on #{setting.cups_queue}."
+      redirect_to item_path(@item), notice: "Receipt queued on #{setting.cups_queue}."
     else
-      redirect_to @item, alert: "Print failed: #{result.error_message}"
+      redirect_to item_path(@item), alert: "Print failed: #{result.error_message}"
     end
   end
 
@@ -133,17 +133,17 @@ class ItemsController < ApplicationController
 
   def describe
     unless @item.photo.attached?
-      redirect_to @item, alert: "No photo attached to describe."
+      redirect_to item_path(@item), alert: "No photo attached to describe."
       return
     end
 
     unless AgentSetting.enabled?
-      redirect_to @item, alert: "AI agent is not enabled. Enable it in Settings > AI Agent."
+      redirect_to item_path(@item), alert: "AI agent is not enabled. Enable it in Settings > AI Agent."
       return
     end
 
     DescribeItemJob.perform_later(@item.id, force: true)
-    redirect_to @item, notice: "AI description requested. It will update shortly."
+    redirect_to item_path(@item), notice: "AI description requested. It will update shortly."
   end
 
   def resolve
@@ -151,12 +151,12 @@ class ItemsController < ApplicationController
     claimed_by = params[:claimed_by]
 
     unless Item.dispositions.key?(disposition)
-      redirect_to @item, alert: "Invalid disposition."
+      redirect_to item_path(@item), alert: "Invalid disposition."
       return
     end
 
     @item.update!(disposition: disposition, claimed_by: claimed_by)
-    redirect_to @item, notice: "Item resolved as #{disposition}."
+    redirect_to item_path(@item), notice: "Item resolved as #{disposition}."
   end
 
   def winner_forfeit
