@@ -92,6 +92,12 @@
             print_item_path(@item),
             method: :post,
             class: "btn btn-outline-dark btn-sm" %>
+      <%= link_to "Print in browser",
+            print_browser_item_path(@item),
+            class: "btn btn-outline-dark btn-sm",
+            target: "_blank",
+            rel: "noopener",
+            data: { turbo: false } %>
       <%= link_to "Edit", edit_item_path(@item), class: "btn btn-outline-secondary btn-sm" %>
       <% if @item.photo.attached? && AgentSetting.enabled? %>
         <%= button_to "AI Describe", describe_item_path(@item), method: :post, class: "btn btn-outline-info btn-sm" %>

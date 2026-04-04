@@ -50,6 +50,12 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  test "show offers thermal print and browser print" do
+    get item_path(@item)
+    assert_select "form[action='#{print_item_path(@item)}']"
+    assert_select "a[href='#{print_browser_item_path(@item)}'][target='_blank']"
+  end
+
   test "show displays item description" do
     get item_path(@item)
     assert_select "h1", @item.description
@@ -102,6 +108,24 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
   test "index offers print all completed form" do
     get items_path
     assert_select "form[action='#{print_completed_items_path}']"
+  end
+
+  test "index offers browser print link for completed items" do
+    get items_path
+    assert_select "a[href='#{print_completed_browser_items_path}'][target='_blank']"
+  end
+
+  test "print_browser renders sheet for item" do
+    get print_browser_item_path(@item)
+    assert_response :success
+    assert_select ".browser-print-sheet"
+    assert_select "h1", text: @item.display_description
+  end
+
+  test "print_completed_browser renders completed items" do
+    get print_completed_browser_items_path
+    assert_response :success
+    assert_select ".browser-print-sheet"
   end
 
   # New

@@ -1,0 +1,14 @@
+<% content_for :title, "Print completed — #{@browser_print_items.size} item#{'s' unless @browser_print_items.size == 1}" %>
+
+<% if @browser_print_items.any? %>
+  <% @browser_print_items.each_with_index do |item, i| %>
+    <%= render "browser_print_sheet",
+          item: item,
+          last_sheet: i == @browser_print_items.size - 1 %>
+  <% end %>
+<% else %>
+  <article class="browser-print-sheet last-sheet">
+    <h1>No completed items</h1>
+    <p>Resolve items as Mine, Foster, or Kill to include them in this list.</p>
+  </article>
+<% end %>

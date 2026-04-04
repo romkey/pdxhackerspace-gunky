@@ -1,0 +1,35 @@
+<%# locals: (item:, last_sheet:) %>
+<article class="browser-print-sheet<%= " last-sheet" if last_sheet %>">
+  <h1><%= item.display_description %></h1>
+
+  <% if item.photo.attached? %>
+    <%= image_tag url_for(item.photo.variant(resize_to_limit: [ 1200, 900 ])),
+          class: "browser-print-photo",
+          alt: "" %>
+  <% else %>
+    <p style="color: #6c757d; margin-bottom: 1rem;">No photo</p>
+  <% end %>
+
+  <dl class="browser-print-meta">
+    <dt>Location</dt>
+    <dd><%= item.location.presence || "Not specified" %></dd>
+
+    <dt>Expires</dt>
+    <dd><%= item.expiration_date&.strftime("%B %d, %Y") || "N/A" %></dd>
+
+    <dt>Disposition</dt>
+    <dd><%= item.disposition.capitalize %></dd>
+
+    <dt>Winners / next steps</dt>
+    <dd>
+      <% detail_lines = receipt_disposition_lines(item).drop(1) %>
+      <% if detail_lines.any? %>
+        <% detail_lines.each do |line| %>
+          <div><%= line %></div>
+        <% end %>
+      <% else %>
+        <span style="color: #6c757d;">None</span>
+      <% end %>
+    </dd>
+  </dl>
+</article>

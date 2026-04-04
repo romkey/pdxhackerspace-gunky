@@ -6,6 +6,12 @@
           method: :post,
           class: "btn btn-outline-secondary",
           form_class: "d-inline" %>
+    <%= link_to "Print all completed (browser)",
+          print_completed_browser_items_path,
+          class: "btn btn-outline-secondary",
+          target: "_blank",
+          rel: "noopener",
+          data: { turbo: false } %>
     <%= link_to "New Item", new_item_path, class: "btn btn-primary" %>
   </div>
 </div>

@@ -1,7 +1,7 @@
 class ItemsController < ApplicationController
   include Pagy::Method
 
-  before_action :set_item, only: [ :show, :edit, :update, :destroy, :resolve, :describe, :winner_forfeit, :winner_picked_up, :print ]
+  before_action :set_item, only: [ :show, :edit, :update, :destroy, :resolve, :describe, :winner_forfeit, :winner_picked_up, :print, :print_browser ]
 
   def index
     items = Item.order(created_at: :desc)
@@ -99,6 +99,15 @@ class ItemsController < ApplicationController
     else
       redirect_to @item, alert: "Print failed: #{result.error_message}"
     end
+  end
+
+  def print_browser
+    render layout: "print_browser"
+  end
+
+  def print_completed_browser
+    @browser_print_items = Item.where.not(disposition: :pending).order(:expiration_date, :id)
+    render :print_completed_browser, layout: "print_browser"
   end
 
   def print_completed

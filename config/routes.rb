@@ -8,10 +8,12 @@ Rails.application.routes.draw do
     collection do
       post :preview_description
       post :print_completed
+      get :print_completed_browser
     end
 
     member do
       post :print
+      get :print_browser
       patch :resolve
       post :describe
       post :winner_forfeit

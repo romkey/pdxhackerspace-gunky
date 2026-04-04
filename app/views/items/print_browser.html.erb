@@ -1,0 +1,3 @@
+<% content_for :title, "Print — #{@item.display_description.truncate(40)}" %>
+
+<%= render "browser_print_sheet", item: @item, last_sheet: true %>
