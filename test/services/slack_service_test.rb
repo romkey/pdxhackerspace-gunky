@@ -251,6 +251,49 @@ class SlackServiceTest < ActiveSupport::TestCase
     assert_not_nil image_block
   end
 
+  test "replace_expired_item_message header obeys Slack 150 char plain_text limit" do
+    item = Item.create!(
+      description: "x" * 250,
+      location: "A",
+      expiration_date: Date.current - 1.day,
+      disposition: :kill,
+      slack_channel_id: "C123",
+      slack_message_ts: "111.222"
+    )
+
+    service = SlackService.new
+    client = FakeSlackClient.new(ts: "333.444", channel: "C123")
+    service.instance_variable_set(:@client, client)
+
+    service.replace_expired_item_message(item)
+
+    header = client.post_calls.first[:blocks].find { |b| b[:type] == "header" }
+    assert_operator header[:text][:text].length, :<=, 150
+  end
+
+  test "replace_expired_item_message retries without image when Slack rejects image block" do
+    item = Item.create!(
+      description: "Thing",
+      location: "B",
+      expiration_date: Date.current - 1.day,
+      disposition: :kill,
+      slack_channel_id: "C123",
+      slack_message_ts: "111.222"
+    )
+    item.photo.attach(io: StringIO.new("x"), filename: "x.jpg", content_type: "image/jpeg")
+
+    service = SlackService.new
+    client = FakeSlackClient.new(ts: "333.444", channel: "C123", fail_first_post_with_image: true)
+    service.instance_variable_set(:@client, client)
+
+    service.replace_expired_item_message(item)
+
+    assert_equal 2, client.post_calls.size
+    assert_not_nil client.post_calls.first[:blocks].find { |b| b[:type] == "image" }
+    assert_nil client.post_calls.last[:blocks].find { |b| b[:type] == "image" }
+    assert_equal "333.444", item.reload.slack_message_ts
+  end
+
   test "replace_expired_item_message still posts when delete fails" do
     item = Item.create!(
       description: "Heavy monitor",
@@ -275,16 +318,29 @@ class SlackServiceTest < ActiveSupport::TestCase
   class FakeSlackClient
     attr_reader :post_calls, :update_calls, :delete_calls
 
-    def initialize(ts: "0.0", channel: "C000", delete_error: nil)
+    def initialize(ts: "0.0", channel: "C000", delete_error: nil, fail_first_post_with_image: false)
       @ts = ts
       @channel = channel
       @delete_error = delete_error
+      @fail_first_post_with_image = fail_first_post_with_image
+      @failed_image_post_once = false
       @post_calls = []
       @update_calls = []
       @delete_calls = []
     end
 
     def chat_postMessage(**kwargs)
+      if @fail_first_post_with_image && !@failed_image_post_once
+        has_image = kwargs[:blocks]&.any? { |b| b[:type] == "image" }
+        if has_image
+          @failed_image_post_once = true
+          raise Slack::Web::Api::Errors::SlackError.new(
+            "invalid_blocks",
+            response: { "ok" => false, "error" => "invalid_blocks" }
+          )
+        end
+      end
+
       @post_calls << kwargs
       { "ts" => @ts, "channel" => @channel }
     end

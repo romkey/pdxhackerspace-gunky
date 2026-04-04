@@ -53,6 +53,11 @@ class SlackService
 
   private
 
+  # Slack header plain_text must be <= 150 characters.
+  def expired_item_header_plain_text(item)
+    "\"#{item.display_description}\" has completed".truncate(150, omission: "…")
+  end
+
   def delete_item_message(item)
     payload = {
       channel: item.slack_channel_id,
@@ -63,18 +68,40 @@ class SlackService
   end
 
   def post_expired_item_message(item)
-    payload = {
-      channel: item.slack_channel_id.presence || ENV.fetch("SLACK_CHANNEL_ID"),
-      text: expired_item_text(item),
-      blocks: expired_item_blocks(item)
-    }
-    log_payload("chat_postMessage_expired", payload)
-    response = @client.chat_postMessage(**payload)
+    channel = item.slack_channel_id.presence || ENV.fetch("SLACK_CHANNEL_ID")
+    text = expired_item_text(item)
+    want_image = item.photo.attached?
+
+    response =
+      begin
+        chat_post_expired(channel, text, expired_item_blocks(item, include_image: want_image))
+      rescue Slack::Web::Api::Errors::SlackError => e
+        raise unless want_image && slack_error_may_be_image_block?(e)
+
+        Rails.logger.warn(
+          "SlackService post_expired_item_message retry without image for item #{item.id}: #{e.class}: #{e.message}"
+        )
+        chat_post_expired(channel, text, expired_item_blocks(item, include_image: false))
+      end
 
     item.update!(
       slack_message_ts: response["ts"],
       slack_channel_id: response["channel"]
     )
+  end
+
+  def chat_post_expired(channel, text, blocks)
+    payload = { channel: channel, text: text, blocks: blocks }
+    log_payload("chat_postMessage_expired", payload)
+    @client.chat_postMessage(**payload)
+  end
+
+  def slack_error_may_be_image_block?(error)
+    msg = "#{error.class} #{error.message}".downcase
+    msg.include?("invalid_blocks") ||
+      msg.include?("image") ||
+      msg.include?("download") ||
+      msg.include?("must_be")
   end
 
   def expired_item_text(item)
@@ -92,11 +119,11 @@ class SlackService
     end
   end
 
-  def expired_item_blocks(item)
+  def expired_item_blocks(item, include_image: true)
     blocks = [
       {
         type: "header",
-        text: { type: "plain_text", text: "\"#{item.display_description.to_s.truncate(140)}\" has completed", emoji: true }
+        text: { type: "plain_text", text: expired_item_header_plain_text(item), emoji: true }
       },
       {
         type: "section",
@@ -104,7 +131,7 @@ class SlackService
       }
     ]
 
-    if item.photo.attached?
+    if include_image && item.photo.attached?
       blocks << {
         type: "image",
         image_url: Rails.application.routes.url_helpers.rails_blob_url(item.photo, **app_url_options),
