@@ -14,20 +14,22 @@
   <div class="col-lg-6">
     <%= render "items/description", item: @item %>
 
-    <div class="mb-4 pb-3 border-bottom">
-      <h2 class="h6 text-body-secondary text-uppercase small mb-2">Print this item</h2>
-      <div class="d-flex flex-wrap gap-2 align-items-center">
-        <%= button_to "Thermal printer",
-              print_item_path(@item),
-              method: :post,
-              class: "btn btn-primary",
-              form_class: "d-inline" %>
-        <%= link_to "Browser print",
-              print_browser_item_path(@item),
-              class: "btn btn-outline-primary",
-              target: "_blank",
-              rel: "noopener",
-              data: { turbo: false } %>
+    <div class="card mb-4 border shadow-sm" data-bs-theme="light">
+      <div class="card-body py-3">
+        <h2 class="h6 text-body-secondary text-uppercase small mb-2">Print this item</h2>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <%= button_to "Thermal printer",
+                print_item_path(@item),
+                method: :post,
+                class: "btn btn-primary",
+                form_class: "d-inline" %>
+          <%= link_to "Browser print",
+                print_browser_item_path(@item),
+                class: "btn btn-outline-primary",
+                target: "_blank",
+                rel: "noopener",
+                data: { turbo: false } %>
+        </div>
       </div>
     </div>
 
