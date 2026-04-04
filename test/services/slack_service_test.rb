@@ -334,6 +334,7 @@ class SlackServiceTest < ActiveSupport::TestCase
         has_image = kwargs[:blocks]&.any? { |b| b[:type] == "image" }
         if has_image
           @failed_image_post_once = true
+          @post_calls << kwargs
           raise Slack::Web::Api::Errors::SlackError.new(
             "invalid_blocks",
             response: { "ok" => false, "error" => "invalid_blocks" }
