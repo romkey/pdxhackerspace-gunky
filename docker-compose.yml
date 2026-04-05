@@ -44,20 +44,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       RAILS_ENV: development
 
-  test:
-    build:
-      context: .
-      target: test
-    command: bash -c "bin/rails db:test:prepare && bin/rails test"
-    volumes:
-      - .:/rails
-    depends_on:
-      - db
-      - redis
-    environment:
-      DATABASE_URL: postgres://gunky:gunky@db:5432/gunky_test
-      REDIS_URL: redis://redis:6379/1
-      RAILS_ENV: test
+  # Tests and RuboCop: use docker-compose.test.yml (no image build; Postgres 18 + Redis).
 
 volumes:
   postgres_data:

@@ -102,6 +102,38 @@ class SlackInteractionsControllerTest < ActionDispatch::IntegrationTest
     SlackService.define_method(:replace_expired_item_message, original)
   end
 
+  test "picked up sets picked_up_at and claimed_by and reposts when posted to slack" do
+    item = Item.create!(
+      description: "Pickup test",
+      expiration_date: Date.current - 1.day,
+      disposition: :mine,
+      claimed_by: "alice",
+      slack_channel_id: "C123",
+      slack_message_ts: "111.222"
+    )
+    vote = item.votes.create!(slack_user_id: "U001", slack_username: "alice", choice: :mine)
+
+    repost_called = false
+    original = SlackService.instance_method(:replace_expired_item_message)
+    SlackService.define_method(:replace_expired_item_message) { |_| repost_called = true }
+
+    payload = build_payload(
+      action_id: "expired_picked_up:U001",
+      item_id: item.id,
+      user_id: "U001",
+      username: "alice"
+    )
+
+    post slack_interactions_path, params: { payload: payload.to_json }
+
+    assert_response :ok
+    assert repost_called
+    assert vote.reload.picked_up_at.present?
+    assert_equal "alice", item.reload.claimed_by
+  ensure
+    SlackService.define_method(:replace_expired_item_message, original)
+  end
+
   test "forfeit from different user is ignored" do
     item = Item.create!(
       description: "Expired item",

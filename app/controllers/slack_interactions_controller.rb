@@ -97,7 +97,14 @@ class SlackInteractionsController < ApplicationController
     item = Item.find_by(id: item_id)
     return unless item
 
+    mine_vote = item.votes.find_by(slack_user_id: target_user_id, choice: :mine)
+    return unless mine_vote
+
+    mine_vote.update!(picked_up_at: Time.current)
+    item.update!(disposition: :mine, claimed_by: mine_vote.slack_username)
+
     Rails.logger.info("Expired item #{item.id}: #{acting_user_id} acknowledged pickup")
+    SlackService.new.replace_expired_item_message(item) if item.posted_to_slack?
   end
 
   def verify_slack_signature

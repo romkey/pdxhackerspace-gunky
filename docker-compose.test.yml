@@ -1,0 +1,82 @@
+# Test and lint without building an app image: Ruby base image + mounted source.
+#
+# Usage:
+#   docker compose -f docker-compose.test.yml run --rm app
+#   docker compose -f docker-compose.test.yml run --rm lint
+#   docker compose -f docker-compose.test.yml run --rm app bin/rails test test/models/item_test.rb
+#
+name: gunky-test
+
+networks:
+  default:
+    name: gunky-test-network
+
+volumes:
+  bundle_cache:
+    name: gunky-test-bundle-cache
+  rubocop_cache:
+    name: gunky-test-rubocop-cache
+  postgres_data:
+    name: gunky-test-postgres-data
+
+services:
+  postgres:
+    container_name: gunky-test-postgres
+    image: postgres:18
+    environment:
+      POSTGRES_USER: gunky
+      POSTGRES_PASSWORD: gunky
+      POSTGRES_DB: gunky_test
+    # Postgres 18+ images expect the mount at /var/lib/postgresql (not .../data).
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U gunky -d gunky_test" ]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 5s
+
+  redis:
+    container_name: gunky-test-redis
+    image: redis:7-alpine
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  app:
+    container_name: gunky-test-app
+    image: ruby:3.3.11-bookworm
+    working_dir: /rails
+    volumes:
+      - .:/rails
+      - bundle_cache:/usr/local/bundle
+    environment:
+      BUNDLE_PATH: /usr/local/bundle
+      DATABASE_URL: postgres://gunky:gunky@postgres:5432/gunky_test
+      REDIS_URL: redis://redis:6379/1
+      RAILS_ENV: test
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    entrypoint: [ "/rails/bin/docker-compose-test-entrypoint" ]
+    command: [ "bin/rails", "db:test:prepare", "test" ]
+
+  lint:
+    container_name: gunky-test-lint
+    image: ruby:3.3.11-bookworm
+    working_dir: /rails
+    volumes:
+      - .:/rails
+      - bundle_cache:/usr/local/bundle
+      - rubocop_cache:/rails/tmp/rubocop
+    environment:
+      BUNDLE_PATH: /usr/local/bundle
+      RAILS_ENV: test
+      RUBOCOP_CACHE_ROOT: /rails/tmp/rubocop
+    entrypoint: [ "/rails/bin/docker-compose-test-entrypoint" ]
+    command: [ "bin/rubocop" ]

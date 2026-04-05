@@ -18,7 +18,7 @@ Keep `README.md` as the authoritative project overview. Update it when:
 2. **Requirements** — Ruby, Node, PostgreSQL, Redis versions
 3. **Setup** — clone, env config, Docker Compose, database setup
 4. **Running locally** — `docker compose up`, accessing the app
-5. **Testing** — `docker compose run --rm test`
-6. **Linting** — `docker compose run --rm test rubocop`
+5. **Testing** — `docker compose -f docker-compose.test.yml run --rm app`
+6. **Linting** — `docker compose -f docker-compose.test.yml run --rm lint`
 7. **Deployment** — GitHub Actions CI/CD, Docker image releases
 8. **Architecture** — key directories, service objects, background jobs

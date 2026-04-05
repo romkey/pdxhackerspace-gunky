@@ -1,0 +1,34 @@
+<div class="mb-4">
+  <h1 class="mb-0">Winners</h1>
+  <p class="text-muted mb-0">People with mine items still awaiting pickup.</p>
+</div>
+
+<% if @winner_rows.any? %>
+  <% @winner_rows.each do |row| %>
+    <div class="card mb-4">
+      <div class="card-header fw-semibold"><%= row[:slack_username] %></div>
+      <ul class="list-group list-group-flush">
+        <% row[:items].each do |item| %>
+          <li class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+              <%= link_to item.display_description, item_path(item) %>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+              <%= button_to "Forfeit",
+                    winner_forfeit_item_path(item, slack_user_id: row[:slack_user_id]),
+                    method: :post,
+                    class: "btn btn-outline-danger btn-sm",
+                    form: { data: { turbo_confirm: "Remove #{row[:slack_username]} from Mine winners for this item?" } } %>
+              <%= button_to "Picked up",
+                    winner_picked_up_item_path(item, slack_user_id: row[:slack_user_id]),
+                    method: :post,
+                    class: "btn btn-outline-success btn-sm" %>
+            </div>
+          </li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+<% else %>
+  <p class="text-muted">No winners awaiting pickup.</p>
+<% end %>

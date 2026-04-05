@@ -105,13 +105,15 @@ class SlackService
   end
 
   def expired_item_text(item)
-    mine_mentions = mentions_for(item.mine_voter_user_ids)
+    mine_mentions = mentions_for(item.mine_voter_user_ids_pending_pickup)
     foster_mentions = mentions_for(item.foster_voter_user_ids)
     item_label = item.display_description.to_s.truncate(100)
     link_suffix = expired_item_link_suffix(item)
 
     if mine_mentions.present?
       "\"#{item_label}\" has completed. #{mine_mentions} please pick this up within one week. If you cannot, let the next person know it's theirs. Please enjoy each item equally#{link_suffix}"
+    elsif item.mine? && item.votes.mine.exists? && item.votes.mine.where(picked_up_at: nil).none?
+      "\"#{item_label}\" has completed. All mine winners have picked up.#{link_suffix}"
     elsif foster_mentions.present?
       "\"#{item_label}\" has completed. #{foster_mentions} what do you think the space should do with it?#{link_suffix}"
     else
@@ -139,7 +141,7 @@ class SlackService
       }
     end
 
-    item.mine_voters.each do |winner|
+    item.mine_voters_pending_pickup.each do |winner|
       user_id = winner[:slack_user_id]
       username = winner[:slack_username]
 

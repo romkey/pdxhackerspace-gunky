@@ -162,7 +162,7 @@ class ItemsController < ApplicationController
   def winner_forfeit
     winner = winner_vote_for(@item)
     unless winner
-      redirect_to items_path, alert: "Winner vote not found."
+      redirect_back fallback_location: items_path, alert: "Winner vote not found."
       return
     end
 
@@ -170,18 +170,19 @@ class ItemsController < ApplicationController
     @item.resolve_from_votes!
     SlackService.new.replace_expired_item_message(@item) if @item.posted_to_slack?
 
-    redirect_to items_path, notice: "Removed #{winner.slack_username} from Mine winners."
+    redirect_back fallback_location: items_path, notice: "Removed #{winner.slack_username} from Mine winners."
   end
 
   def winner_picked_up
     winner = winner_vote_for(@item)
     unless winner
-      redirect_to items_path, alert: "Winner vote not found."
+      redirect_back fallback_location: items_path, alert: "Winner vote not found."
       return
     end
 
+    winner.update!(picked_up_at: Time.current)
     @item.update!(disposition: :mine, claimed_by: winner.slack_username)
-    redirect_to items_path, notice: "Marked #{winner.slack_username} as picked up."
+    redirect_back fallback_location: items_path, notice: "Marked #{winner.slack_username} as picked up."
   end
 
   private

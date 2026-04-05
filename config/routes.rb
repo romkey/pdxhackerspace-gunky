@@ -4,6 +4,8 @@ require "sidekiq/cron/web"
 Rails.application.routes.draw do
   mount Sidekiq::Web => "/sidekiq"
 
+  resources :winners, only: [ :index ]
+
   resources :items do
     collection do
       post :preview_description

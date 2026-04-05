@@ -39,7 +39,15 @@ class Item < ApplicationRecord
   end
 
   def mine_voters
-    unique_voters_for(:mine)
+    unique_mine_winner_hashes(votes.mine)
+  end
+
+  def mine_voters_pending_pickup
+    unique_mine_winner_hashes(votes.mine.where(picked_up_at: nil))
+  end
+
+  def mine_voter_user_ids_pending_pickup
+    mine_voters_pending_pickup.map { |w| w[:slack_user_id] }
   end
 
   def foster_voter_usernames
@@ -110,18 +118,6 @@ class Item < ApplicationRecord
     unique_votes_for_choice(choice).map(&:slack_user_id)
   end
 
-  def unique_voters_for(choice)
-    unique_votes = unique_votes_for_choice(choice)
-    names_by_id = cached_names_by_slack_user_id(unique_votes.map(&:slack_user_id))
-
-    unique_votes.each_with_object([]) do |vote, winners|
-      winners << {
-        slack_user_id: vote.slack_user_id,
-        slack_username: names_by_id[vote.slack_user_id] || vote.slack_username
-      }
-    end
-  end
-
   def unique_votes_for_choice(choice)
     seen_user_ids = {}
     votes.public_send(choice).order(:updated_at, :id).each_with_object([]) do |vote, unique_votes|
@@ -137,6 +133,24 @@ class Item < ApplicationRecord
 
     SlackMemberCache.where(slack_user_id: slack_user_ids).each_with_object({}) do |entry, names|
       names[entry.slack_user_id] = entry.preferred_name
+    end
+  end
+
+  def unique_mine_winner_hashes(votes_scope)
+    seen_user_ids = {}
+    unique_votes = votes_scope.order(:updated_at, :id).each_with_object([]) do |vote, acc|
+      next if seen_user_ids[vote.slack_user_id]
+
+      seen_user_ids[vote.slack_user_id] = true
+      acc << vote
+    end
+    names_by_id = cached_names_by_slack_user_id(unique_votes.map(&:slack_user_id))
+
+    unique_votes.map do |vote|
+      {
+        slack_user_id: vote.slack_user_id,
+        slack_username: names_by_id[vote.slack_user_id] || vote.slack_username
+      }
     end
   end
 

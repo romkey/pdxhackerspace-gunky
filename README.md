@@ -53,20 +53,22 @@ Under **Settings → Thermal printer**, set the **CUPS printer queue** name from
 
 ### Running Tests
 
+Uses a separate Compose file (no app image build; source is bind-mounted; Postgres **18** and Redis **7** with `gunky-*` container names):
+
 ```bash
-docker compose run --rm test
+docker compose -f docker-compose.test.yml run --rm app
 ```
 
 ### Running Linter
 
 ```bash
-docker compose run --rm test rubocop
+docker compose -f docker-compose.test.yml run --rm lint
 ```
 
 ## Tech Stack
 
 - Rails 8.1.3 / Ruby 3.3.11
-- PostgreSQL 16
+- PostgreSQL 16 (development Compose) / PostgreSQL 18 (test Compose)
 - Redis 7 / Sidekiq
 - Bootstrap 5.3
 - Stimulus / Turbo

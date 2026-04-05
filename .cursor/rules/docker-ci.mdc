@@ -17,11 +17,16 @@ alwaysApply: false
 
 ## docker-compose
 
-- `docker compose run --rm test` — runs `db:create db:schema:load` then `bin/rails test`
-- `docker compose run --rm test rubocop` — runs RuboCop lint
-- Services: `db` (postgres:16), `redis` (redis:7-alpine), `web`, `sidekiq`
+**Development** (`docker-compose.yml`): `db` (postgres:16), `redis`, `web`, `sidekiq` — app image is built from the Dockerfile; source bind-mounted at `/rails`.
+
+**Tests and lint** (`docker-compose.test.yml`): no `build` — `ruby:3.3.11-bookworm` with the repo mounted at `/rails`, named volumes for Bundler and RuboCop cache. Services use `gunky-test-*` container names and an isolated network (`gunky-test-network`).
+
+- `docker compose -f docker-compose.test.yml run --rm app` — `bin/rails db:test:prepare test`
+- `docker compose -f docker-compose.test.yml run --rm lint` — `bin/rubocop` (RuboCop cache under `tmp/rubocop` on a named volume)
+
+First run installs Debian packages once (marker on the bundle volume) then `bundle install`.
+
 - The `migrate` service runs under the `tools` profile
-- App source is bind-mounted at `/rails`
 
 ## GitHub Actions
 

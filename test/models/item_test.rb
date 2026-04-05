@@ -83,6 +83,16 @@ class ItemTest < ActiveSupport::TestCase
     assert_equal [ "Alice Display", "claire", "zoe" ], item.mine_voter_usernames
   end
 
+  test "mine_voters_pending_pickup excludes votes with picked_up_at" do
+    item = items(:pending_item)
+    item.votes.create!(slack_user_id: "U010", slack_username: "claire", choice: :mine)
+    picked = item.votes.create!(slack_user_id: "U011", slack_username: "done", choice: :mine, picked_up_at: Time.current)
+
+    pending = item.mine_voters_pending_pickup
+    assert_equal 2, pending.size
+    assert_not_includes pending.map { |w| w[:slack_user_id] }, picked.slack_user_id
+  end
+
   test "foster_voter_usernames returns unique usernames in vote order" do
     item = items(:pending_item)
     item.votes.create!(slack_user_id: "U010", slack_username: "claire", choice: :foster)

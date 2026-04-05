@@ -182,6 +182,66 @@ class SlackServiceTest < ActiveSupport::TestCase
     ENV.delete("APP_INTERNAL_URL")
   end
 
+  test "replace_expired_item_message omits picked-up mine winners from mentions and actions" do
+    item = Item.create!(
+      description: "Shared item",
+      location: "Shelf A",
+      expiration_date: Date.current - 1.day,
+      disposition: :mine,
+      slack_channel_id: "C123",
+      slack_message_ts: "111.222"
+    )
+    item.votes.create!(slack_user_id: "U100", slack_username: "alice", choice: :mine, picked_up_at: 1.hour.ago)
+    item.votes.create!(slack_user_id: "U200", slack_username: "bob", choice: :mine)
+
+    service = SlackService.new
+    client = FakeSlackClient.new(ts: "333.444", channel: "C123")
+    service.instance_variable_set(:@client, client)
+    ENV["APP_INTERNAL_URL"] = "https://internal.example"
+
+    service.replace_expired_item_message(item)
+
+    posted_text = client.post_calls.first[:text]
+    assert_includes posted_text, "<@U200>"
+    assert_not_includes posted_text, "<@U100>"
+    posted_blocks = client.post_calls.first[:blocks]
+    winner_label_blocks = posted_blocks.select { |b| b[:type] == "section" && b[:text].present? && b[:text][:text].include?("Actions for:") }
+    assert_equal 1, winner_label_blocks.size
+    assert_includes winner_label_blocks.first[:text][:text], "<@U200>"
+    actions_blocks = posted_blocks.select { |b| b[:type] == "actions" }
+    assert_equal 1, actions_blocks.size
+    action_ids = actions_blocks.flat_map { |b| b[:elements].map { |e| e[:action_id] } }
+    assert_includes action_ids, "expired_forfeit:U200"
+    assert_includes action_ids, "expired_picked_up:U200"
+  ensure
+    ENV.delete("APP_INTERNAL_URL")
+  end
+
+  test "replace_expired_item_message posts all-picked-up copy when every mine winner picked up" do
+    item = Item.create!(
+      description: "Gone item",
+      expiration_date: Date.current - 1.day,
+      disposition: :mine,
+      slack_channel_id: "C123",
+      slack_message_ts: "111.222"
+    )
+    item.votes.create!(slack_user_id: "U100", slack_username: "alice", choice: :mine, picked_up_at: 1.hour.ago)
+    item.votes.create!(slack_user_id: "U200", slack_username: "bob", choice: :mine, picked_up_at: 2.hours.ago)
+
+    service = SlackService.new
+    client = FakeSlackClient.new(ts: "333.444", channel: "C123")
+    service.instance_variable_set(:@client, client)
+    ENV["APP_INTERNAL_URL"] = "https://internal.example"
+
+    service.replace_expired_item_message(item)
+
+    posted_text = client.post_calls.first[:text]
+    assert_includes posted_text, "All mine winners have picked up"
+    assert_not_includes posted_text, "<@U100>"
+  ensure
+    ENV.delete("APP_INTERNAL_URL")
+  end
+
   test "replace_expired_item_message posts foster mentions when no mine votes" do
     item = Item.create!(
       description: "Shop stool",

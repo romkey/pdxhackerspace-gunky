@@ -367,8 +367,8 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
       claimed_by: "alice",
       expiration_date: Date.current - 1.day
     )
-    item.votes.create!(slack_user_id: "U111", slack_username: "alice", choice: :mine)
-    item.votes.create!(slack_user_id: "U222", slack_username: "bob", choice: :mine)
+    alice_vote = item.votes.create!(slack_user_id: "U111", slack_username: "alice", choice: :mine)
+    bob_vote = item.votes.create!(slack_user_id: "U222", slack_username: "bob", choice: :mine)
 
     post winner_picked_up_item_path(item), params: { slack_user_id: "U222" }
 
@@ -376,6 +376,40 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     item.reload
     assert item.mine?
     assert_equal "bob", item.claimed_by
+    assert_nil alice_vote.reload.picked_up_at
+    assert bob_vote.reload.picked_up_at.present?
+  end
+
+  test "winner_picked_up redirects back when referer is set" do
+    item = Item.create!(
+      description: "Mug",
+      disposition: :mine,
+      claimed_by: "alice",
+      expiration_date: Date.current - 1.day
+    )
+    item.votes.create!(slack_user_id: "U111", slack_username: "alice", choice: :mine)
+
+    referer = "http://www.example.com#{winners_path}"
+    post winner_picked_up_item_path(item),
+         params: { slack_user_id: "U111" },
+         headers: { "HTTP_REFERER" => referer }
+
+    assert_redirected_to referer
+  end
+
+  test "index hides winner section after picked up" do
+    item = Item.create!(
+      description: "Chair",
+      disposition: :mine,
+      claimed_by: "solo",
+      expiration_date: Date.current - 1.day
+    )
+    item.votes.create!(slack_user_id: "U999", slack_username: "solo", choice: :mine, picked_up_at: Time.current)
+
+    get items_path
+
+    assert_response :success
+    assert_select "h6", text: "Winners", count: 0
   end
 
   private
