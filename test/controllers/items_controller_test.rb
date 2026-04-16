@@ -66,6 +66,21 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  test "show labels claimed_by as kept by for cancelled item" do
+    cancelled_item = Item.create!(
+      description: "Owner kept it",
+      disposition: :cancelled,
+      claimed_by: "alice",
+      expiration_date: Date.current + 1.day
+    )
+
+    get item_path(cancelled_item)
+
+    assert_response :success
+    assert_select "th", text: "Kept by"
+    assert_select "td", text: "alice"
+  end
+
   test "show displays resolve form for pending item" do
     get item_path(@item)
     assert_select "select[name='disposition']"
@@ -335,7 +350,7 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     post winner_forfeit_item_path(item), params: { slack_user_id: "U111" }
 
     assert_redirected_to items_path
-    assert repost_called
+    assert_not repost_called
     assert_nil item.votes.find_by(slack_user_id: "U111", choice: :mine)
     assert item.reload.foster?
   ensure

@@ -48,6 +48,11 @@
             <% if item.expired? && item.pending? %>
               <span class="badge bg-warning text-dark">Expired</span>
             <% end %>
+            <% if item.cancelled? && item.claimed_by.present? %>
+              <p class="mt-2 mb-0 text-muted">
+                <small>Kept by <%= item.claimed_by %></small>
+              </p>
+            <% end %>
 
             <% if item.mine? && item.mine_voters_pending_pickup.any? %>
               <div class="mt-3">

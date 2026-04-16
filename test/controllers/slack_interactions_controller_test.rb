@@ -69,7 +69,48 @@ class SlackInteractionsControllerTest < ActionDispatch::IntegrationTest
     SlackService.define_method(:update_item_message, original)
   end
 
-  test "forfeit removes mine vote, re-resolves item, and reposts expired notice" do
+  test "keep item action marks item cancelled, stores owner, and updates Slack once" do
+    cancel_calls = 0
+    original_cancel = SlackService.instance_method(:cancel_item_message)
+    SlackService.define_method(:cancel_item_message) do |_item|
+      cancel_calls += 1
+    end
+
+    payload = build_payload(action_id: "keep_item", item_id: @item.id, user_id: "U001", username: "alice")
+
+    assert_no_difference "Vote.count" do
+      post slack_interactions_path, params: { payload: payload.to_json }
+    end
+
+    assert_response :ok
+    @item.reload
+    assert @item.cancelled?
+    assert_equal "Alice Display", @item.claimed_by
+    assert_equal 1, cancel_calls
+  ensure
+    SlackService.define_method(:cancel_item_message, original_cancel)
+  end
+
+  test "keep item action is ignored for non-pending item" do
+    resolved_item = items(:claimed_item)
+    cancel_calls = 0
+    original_cancel = SlackService.instance_method(:cancel_item_message)
+    SlackService.define_method(:cancel_item_message) do |_item|
+      cancel_calls += 1
+    end
+
+    payload = build_payload(action_id: "keep_item", item_id: resolved_item.id, user_id: "U001", username: "alice")
+    post slack_interactions_path, params: { payload: payload.to_json }
+
+    assert_response :ok
+    assert resolved_item.reload.mine?
+    assert_equal "alice", resolved_item.claimed_by
+    assert_equal 0, cancel_calls
+  ensure
+    SlackService.define_method(:cancel_item_message, original_cancel)
+  end
+
+  test "forfeit removes mine vote and re-resolves item without reposting to Slack" do
     item = Item.create!(
       description: "Expired item",
       expiration_date: Date.current - 1.day,
@@ -95,14 +136,14 @@ class SlackInteractionsControllerTest < ActionDispatch::IntegrationTest
     post slack_interactions_path, params: { payload: payload.to_json }
 
     assert_response :ok
-    assert repost_called
+    assert_not repost_called
     assert_nil item.votes.find_by(slack_user_id: "U001", choice: :mine)
     assert item.reload.foster?
   ensure
     SlackService.define_method(:replace_expired_item_message, original)
   end
 
-  test "picked up sets picked_up_at and claimed_by and reposts when posted to slack" do
+  test "picked up sets picked_up_at and claimed_by without reposting to Slack" do
     item = Item.create!(
       description: "Pickup test",
       expiration_date: Date.current - 1.day,
@@ -127,7 +168,7 @@ class SlackInteractionsControllerTest < ActionDispatch::IntegrationTest
     post slack_interactions_path, params: { payload: payload.to_json }
 
     assert_response :ok
-    assert repost_called
+    assert_not repost_called
     assert vote.reload.picked_up_at.present?
     assert_equal "alice", item.reload.claimed_by
   ensure

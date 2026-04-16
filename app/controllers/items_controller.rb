@@ -168,7 +168,6 @@ class ItemsController < ApplicationController
 
     winner.destroy!
     @item.resolve_from_votes!
-    SlackService.new.replace_expired_item_message(@item) if @item.posted_to_slack?
 
     redirect_back fallback_location: items_path, notice: "Removed #{winner.slack_username} from Mine winners."
   end

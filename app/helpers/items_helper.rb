@@ -3,7 +3,8 @@ module ItemsHelper
     "pending" => "bg-secondary",
     "mine"    => "bg-primary",
     "foster"  => "bg-info",
-    "kill"    => "bg-danger"
+    "kill"    => "bg-danger",
+    "cancelled" => "bg-dark"
   }.freeze
 
   VOTE_BADGES = {
@@ -38,6 +39,9 @@ module ItemsHelper
     when "kill"
       names = item.kill_voter_usernames
       lines << "Kill votes: #{names.join(', ')}" if names.any?
+    when "cancelled"
+      lines << "Kept by owner: #{item.claimed_by}" if item.claimed_by.present?
+      lines << "No further giveaway actions."
     when "pending"
       if item.votes.any?
         %i[mine foster kill].each do |choice|

@@ -33,6 +33,8 @@ class SlackInteractionsController < ApplicationController
     payload["actions"].each do |action|
       action_id = action["action_id"].to_s
       case
+      when action_id == "keep_item"
+        handle_keep_item_action(payload, action)
       when action_id.start_with?("vote_")
         handle_vote_action(payload, action)
       when action_id.start_with?("expired_forfeit:")
@@ -56,10 +58,7 @@ class SlackInteractionsController < ApplicationController
       return
     end
 
-    resolved_name = SlackMemberCacheService.new.resolve_name(
-      user["id"],
-      fallback_username: user["username"].presence || user["name"].presence || user["id"]
-    )
+    resolved_name = resolve_slack_name(user)
 
     vote = item.votes.find_or_initialize_by(slack_user_id: user["id"])
     vote.update!(
@@ -68,6 +67,22 @@ class SlackInteractionsController < ApplicationController
     )
 
     SlackService.new.update_item_message(item)
+  end
+
+  def handle_keep_item_action(payload, action)
+    item_id = action["value"].to_i
+    user = payload["user"] || {}
+
+    item = Item.find_by(id: item_id)
+    unless item&.pending?
+      Rails.logger.info(
+        "Slack keep-item ignored for non-pending item (item_id=#{item_id}, disposition=#{item&.disposition.inspect}, user_id=#{user['id']})"
+      )
+      return
+    end
+
+    item.update!(disposition: :cancelled, claimed_by: resolve_slack_name(user))
+    SlackService.new.cancel_item_message(item)
   end
 
   def handle_expired_forfeit_action(payload, action)
@@ -84,8 +99,6 @@ class SlackInteractionsController < ApplicationController
 
     mine_vote.destroy!
     item.resolve_from_votes!
-
-    SlackService.new.replace_expired_item_message(item) if item.posted_to_slack?
   end
 
   def handle_expired_picked_up_action(payload, action)
@@ -104,7 +117,13 @@ class SlackInteractionsController < ApplicationController
     item.update!(disposition: :mine, claimed_by: mine_vote.slack_username)
 
     Rails.logger.info("Expired item #{item.id}: #{acting_user_id} acknowledged pickup")
-    SlackService.new.replace_expired_item_message(item) if item.posted_to_slack?
+  end
+
+  def resolve_slack_name(user)
+    SlackMemberCacheService.new.resolve_name(
+      user["id"],
+      fallback_username: user["username"].presence || user["name"].presence || user["id"]
+    )
   end
 
   def verify_slack_signature

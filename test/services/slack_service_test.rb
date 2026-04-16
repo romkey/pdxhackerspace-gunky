@@ -21,13 +21,23 @@ class SlackServiceTest < ActiveSupport::TestCase
     assert_equal 1, client.post_calls.size
   end
 
-  test "update_item_message calls chat_update for posted item" do
+  test "update_item_message calls chat_update for posted pending item" do
+    service = SlackService.new
+    client = FakeSlackClient.new
+    service.instance_variable_set(:@client, client)
+
+    @item.update!(slack_message_ts: "1234567890.123456", slack_channel_id: "C0123456789")
+    service.update_item_message(@item.reload)
+    assert_equal 1, client.update_calls.size
+  end
+
+  test "update_item_message does nothing for completed posted item" do
     service = SlackService.new
     client = FakeSlackClient.new
     service.instance_variable_set(:@client, client)
 
     service.update_item_message(@posted_item)
-    assert_equal 1, client.update_calls.size
+    assert_equal 0, client.update_calls.size
   end
 
   test "update_item_message does nothing for unposted item" do
@@ -53,7 +63,35 @@ class SlackServiceTest < ActiveSupport::TestCase
     actions_block = blocks.find { |b| b[:type] == "actions" }
     assert_not_nil actions_block
     action_ids = actions_block[:elements].map { |e| e[:action_id] }
-    assert_equal %w[vote_mine vote_foster vote_kill], action_ids
+    assert_equal %w[vote_mine vote_foster vote_kill keep_item], action_ids
+  end
+
+  test "cancel_item_message updates posted cancelled item with no actions" do
+    service = SlackService.new
+    client = FakeSlackClient.new
+    service.instance_variable_set(:@client, client)
+
+    @item.update!(
+      disposition: :cancelled,
+      claimed_by: "Alice Display",
+      slack_message_ts: "1234567890.123456",
+      slack_channel_id: "C0123456789"
+    )
+
+    service.cancel_item_message(@item.reload)
+
+    assert_equal 1, client.update_calls.size
+    payload = client.update_calls.first
+    assert_includes payload[:text], "Item cancelled"
+    assert_equal "1234567890.123456", payload[:ts]
+    assert_equal "C0123456789", payload[:channel]
+    assert_nil payload[:blocks].find { |b| b[:type] == "actions" }
+    context_block = payload[:blocks].find do |b|
+      b[:type] == "context" && b[:elements].any? { |entry| entry[:text].include?("Giveaway cancelled") }
+    end
+    assert_not_nil context_block
+    assert_includes context_block[:elements].first[:text], "Giveaway cancelled"
+    assert_includes context_block[:elements].first[:text], "Alice Display"
   end
 
   test "build_item_blocks omits action buttons for resolved item" do

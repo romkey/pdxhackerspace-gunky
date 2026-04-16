@@ -2,7 +2,7 @@ class Item < ApplicationRecord
   has_many :votes, dependent: :destroy
   has_one_attached :photo
 
-  enum :disposition, { pending: 0, mine: 1, foster: 2, kill: 3 }
+  enum :disposition, { pending: 0, mine: 1, foster: 2, kill: 3, cancelled: 4 }
 
   validate :description_or_photo_present
 

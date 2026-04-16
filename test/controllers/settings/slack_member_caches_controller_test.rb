@@ -34,5 +34,30 @@ module Settings
     ensure
       SlackService.define_method(:update_item_message, original)
     end
+
+    test "refresh_items skips posted cancelled items" do
+      Item.create!(
+        description: "Kept item",
+        disposition: :cancelled,
+        claimed_by: "owner",
+        expiration_date: Date.current,
+        slack_message_ts: "222.333",
+        slack_channel_id: "C111"
+      )
+
+      updated_item_ids = []
+      original = SlackService.instance_method(:update_item_message)
+      SlackService.define_method(:update_item_message) do |item|
+        updated_item_ids << item.id
+      end
+
+      post refresh_items_settings_slack_member_caches_path
+
+      assert_redirected_to settings_slack_member_caches_path
+      assert_equal [ items(:claimed_item).id ], updated_item_ids
+      assert_match(/Refreshed 1 Slack item message/, flash[:notice])
+    ensure
+      SlackService.define_method(:update_item_message, original)
+    end
   end
 end

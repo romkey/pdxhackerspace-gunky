@@ -31,7 +31,9 @@ module Settings
     private
 
     def posted_items
-      Item.where.not(slack_message_ts: [ nil, "" ]).where.not(slack_channel_id: [ nil, "" ])
+      Item.where.not(slack_message_ts: [ nil, "" ])
+        .where.not(slack_channel_id: [ nil, "" ])
+        .where.not(disposition: :cancelled)
     end
   end
 end

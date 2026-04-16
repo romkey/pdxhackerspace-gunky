@@ -48,7 +48,7 @@
         </tr>
         <% if @item.claimed_by.present? %>
           <tr>
-            <th>Claimed by</th>
+            <th><%= @item.cancelled? ? "Kept by" : "Claimed by" %></th>
             <td><%= @item.claimed_by %></td>
           </tr>
         <% end %>
