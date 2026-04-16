@@ -289,9 +289,9 @@ class SlackService
     vote_parts = []
     mine_voters = item.mine_voter_usernames
     foster_voters = item.foster_voter_usernames
-    vote_parts << "Mine: #{mine_voters.join(', ')}" if mine_voters.any?
-    vote_parts << "Foster: #{foster_voters.join(', ')}" if foster_voters.any?
-    vote_parts << "Kill: #{item.kill_vote_count}" if item.kill_vote_count.positive?
+    vote_parts << "I want this: #{mine_voters.join(', ')}" if mine_voters.any?
+    vote_parts << "Keep it for the space: #{foster_voters.join(', ')}" if foster_voters.any?
+    vote_parts << "Trash it: #{item.kill_vote_count}" if item.kill_vote_count.positive?
 
     if vote_parts.any?
       blocks << {
@@ -313,9 +313,9 @@ class SlackService
         type: "actions",
         block_id: "vote_#{item.id}",
         elements: [
-          { type: "button", text: { type: "plain_text", text: "Mine" }, action_id: "vote_mine", value: item.id.to_s, style: "primary" },
-          { type: "button", text: { type: "plain_text", text: "Foster" }, action_id: "vote_foster", value: item.id.to_s },
-          { type: "button", text: { type: "plain_text", text: "Kill" }, action_id: "vote_kill", value: item.id.to_s, style: "danger" },
+          { type: "button", text: { type: "plain_text", text: "I want this" }, action_id: "vote_mine", value: item.id.to_s, style: "primary" },
+          { type: "button", text: { type: "plain_text", text: "Keep it for the space" }, action_id: "vote_foster", value: item.id.to_s },
+          { type: "button", text: { type: "plain_text", text: "Trash it" }, action_id: "vote_kill", value: item.id.to_s, style: "danger" },
           { type: "button", text: { type: "plain_text", text: "Keep this item" }, action_id: "keep_item", value: item.id.to_s }
         ]
       }

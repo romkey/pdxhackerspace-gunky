@@ -6,9 +6,9 @@
 
 Gunky helps you figure out what to do with all that stuff piling up. Upload items, snap a photo, and let the community decide their fate through Slack polls:
 
-- **Mine** — someone claims it
-- **Foster** — keep it at the space
-- **Kill** — toss it
+- **I want this** — someone claims it
+- **Keep it for the space** — keep it at the space
+- **Trash it** — toss it
 
 Items that nobody votes on get auto-killed after a week. Items with votes are resolved by an admin.
 

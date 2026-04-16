@@ -74,7 +74,7 @@
           <% count = @item.votes.where(choice: choice).count %>
           <% next if count.zero? %>
           <div class="d-flex align-items-center mb-1">
-            <span class="badge <%= vote_badge_class(choice) %> me-2"><%= choice.capitalize %></span>
+            <span class="badge <%= vote_badge_class(choice) %> me-2"><%= vote_choice_label(choice) %></span>
             <span class="fw-bold me-2"><%= count %></span>
             <small class="text-muted">
               (<%= @item.voter_usernames_for(choice).join(", ") %>)
@@ -91,11 +91,11 @@
         <div class="row g-2 align-items-end">
           <div class="col-auto">
             <%= f.label :disposition, class: "form-label" %>
-            <%= f.select :disposition, [["Mine", "mine"], ["Foster", "foster"], ["Kill", "kill"]], {}, class: "form-select" %>
+            <%= f.select :disposition, [["I want this", "mine"], ["Keep it for the space", "foster"], ["Trash it", "kill"]], {}, class: "form-select" %>
           </div>
           <div class="col-auto">
             <%= f.label :claimed_by, "Claimed by", class: "form-label" %>
-            <%= f.text_field :claimed_by, class: "form-control", placeholder: "Name (for Mine)" %>
+            <%= f.text_field :claimed_by, class: "form-control", placeholder: "Name (if claimed)" %>
           </div>
           <div class="col-auto">
             <%= f.submit "Resolve", class: "btn btn-success" %>

@@ -63,7 +63,9 @@ class SlackServiceTest < ActiveSupport::TestCase
     actions_block = blocks.find { |b| b[:type] == "actions" }
     assert_not_nil actions_block
     action_ids = actions_block[:elements].map { |e| e[:action_id] }
+    action_texts = actions_block[:elements].map { |e| e[:text][:text] }
     assert_equal %w[vote_mine vote_foster vote_kill keep_item], action_ids
+    assert_equal [ "I want this", "Keep it for the space", "Trash it", "Keep this item" ], action_texts
   end
 
   test "cancel_item_message updates posted cancelled item with no actions" do
@@ -107,8 +109,8 @@ class SlackServiceTest < ActiveSupport::TestCase
     context_block = blocks.find { |b| b[:type] == "context" }
     assert_not_nil context_block
     vote_text = context_block[:elements].first[:text]
-    assert_includes vote_text, "Mine: Alice Display"
-    assert_includes vote_text, "Foster: bob"
+    assert_includes vote_text, "I want this: Alice Display"
+    assert_includes vote_text, "Keep it for the space: bob"
   end
 
   test "build_item_blocks includes claimed_by field when present" do

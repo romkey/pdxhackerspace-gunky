@@ -29,7 +29,7 @@ class ItemTest < ActiveSupport::TestCase
   end
 
   test "disposition enum values" do
-    assert_equal({ "pending" => 0, "mine" => 1, "foster" => 2, "kill" => 3 }, Item.dispositions)
+    assert_equal({ "pending" => 0, "mine" => 1, "foster" => 2, "kill" => 3, "cancelled" => 4 }, Item.dispositions)
   end
 
   test "expired? returns true when past expiration" do

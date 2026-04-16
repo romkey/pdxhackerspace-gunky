@@ -13,12 +13,22 @@ module ItemsHelper
     "kill"   => "bg-danger"
   }.freeze
 
+  VOTE_LABELS = {
+    "mine" => "I want this",
+    "foster" => "Keep it for the space",
+    "kill" => "Trash it"
+  }.freeze
+
   def disposition_badge_class(disposition)
     DISPOSITION_BADGES[disposition] || "bg-secondary"
   end
 
   def vote_badge_class(choice)
     VOTE_BADGES[choice] || "bg-secondary"
+  end
+
+  def vote_choice_label(choice)
+    VOTE_LABELS[choice.to_s] || choice.to_s.capitalize
   end
 
   # Lines for thermal receipt (plain text; ERB-escaped in template).
@@ -48,7 +58,7 @@ module ItemsHelper
           names = item.voter_usernames_for(choice)
           next if names.empty?
 
-          lines << "#{choice.to_s.capitalize}: #{names.join(', ')}"
+          lines << "#{vote_choice_label(choice)}: #{names.join(', ')}"
         end
       else
         lines << "No votes recorded."
