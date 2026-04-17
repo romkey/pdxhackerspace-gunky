@@ -47,7 +47,7 @@ class SlackService
     payload = {
       channel: item.slack_channel_id,
       ts: item.slack_message_ts,
-      text: "Item cancelled: #{summary_text.truncate(100)}",
+      text: "Item unavailable: #{summary_text.truncate(100)}",
       blocks: blocks
     }
     log_payload("chat_update_cancelled", payload)
@@ -304,7 +304,7 @@ class SlackService
       owner = item.claimed_by.presence || "Owner"
       blocks << {
         type: "context",
-        elements: [ { type: "mrkdwn", text: ":no_entry_sign: Giveaway cancelled. Kept by #{owner}." } ]
+        elements: [ { type: "mrkdwn", text: ":no_entry_sign: Unavailable - owned by #{owner}. Giveaway halted." } ]
       }
     end
 
@@ -316,7 +316,7 @@ class SlackService
           { type: "button", text: { type: "plain_text", text: "I want this" }, action_id: "vote_mine", value: item.id.to_s, style: "primary" },
           { type: "button", text: { type: "plain_text", text: "Keep it for the space" }, action_id: "vote_foster", value: item.id.to_s },
           { type: "button", text: { type: "plain_text", text: "Trash it" }, action_id: "vote_kill", value: item.id.to_s, style: "danger" },
-          { type: "button", text: { type: "plain_text", text: "Keep this item" }, action_id: "keep_item", value: item.id.to_s }
+          { type: "button", text: { type: "plain_text", text: "I own this" }, action_id: "keep_item", value: item.id.to_s }
         ]
       }
     end

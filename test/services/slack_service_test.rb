@@ -65,7 +65,7 @@ class SlackServiceTest < ActiveSupport::TestCase
     action_ids = actions_block[:elements].map { |e| e[:action_id] }
     action_texts = actions_block[:elements].map { |e| e[:text][:text] }
     assert_equal %w[vote_mine vote_foster vote_kill keep_item], action_ids
-    assert_equal [ "I want this", "Keep it for the space", "Trash it", "Keep this item" ], action_texts
+    assert_equal [ "I want this", "Keep it for the space", "Trash it", "I own this" ], action_texts
   end
 
   test "cancel_item_message updates posted cancelled item with no actions" do
@@ -84,15 +84,15 @@ class SlackServiceTest < ActiveSupport::TestCase
 
     assert_equal 1, client.update_calls.size
     payload = client.update_calls.first
-    assert_includes payload[:text], "Item cancelled"
+    assert_includes payload[:text], "Item unavailable"
     assert_equal "1234567890.123456", payload[:ts]
     assert_equal "C0123456789", payload[:channel]
     assert_nil payload[:blocks].find { |b| b[:type] == "actions" }
     context_block = payload[:blocks].find do |b|
-      b[:type] == "context" && b[:elements].any? { |entry| entry[:text].include?("Giveaway cancelled") }
+      b[:type] == "context" && b[:elements].any? { |entry| entry[:text].include?("Unavailable - owned by") }
     end
     assert_not_nil context_block
-    assert_includes context_block[:elements].first[:text], "Giveaway cancelled"
+    assert_includes context_block[:elements].first[:text], "Unavailable - owned by"
     assert_includes context_block[:elements].first[:text], "Alice Display"
   end
 
