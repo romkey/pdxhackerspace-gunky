@@ -18,8 +18,10 @@ class OllamaService
       messages: [
         {
           role: "user",
-          content: @settings.prompt.presence || "Describe this photo",
-          images: [ image_data ]
+          content: [
+            { type: "text", text: @settings.prompt.presence || "Describe this photo" },
+            { type: "image_url", image_url: { url: "data:image/jpeg;base64,#{image_data}" } }
+          ]
         }
       ],
       stream: false
@@ -36,30 +38,47 @@ class OllamaService
 
     response = http.request(request)
 
-    unless response.is_a?(Net::HTTPSuccess)
-      raise Error, "Ollama returned #{response.code}: #{response.body.truncate(200)}"
-    end
+    raise Error, "AI endpoint returned #{response.code}: #{response.body.truncate(200)}" unless response.is_a?(Net::HTTPSuccess)
 
     parsed = JSON.parse(response.body)
-    parsed.dig("message", "content")&.strip.presence ||
-      parsed["response"]&.strip.presence ||
-      raise(Error, "Ollama returned empty response")
+    response_text(parsed)&.strip.presence ||
+      raise(Error, "AI endpoint returned empty response")
   end
 
   private
+
+  def response_text(parsed)
+    content = parsed.dig("choices", 0, "message", "content")
+    return content if content.is_a?(String)
+
+    content&.filter_map { |part| part["text"] if part["type"] == "text" }&.join
+  end
 
   def endpoint_uri
     base = URI.parse(@settings.ollama_url.to_s)
 
     unless base.is_a?(URI::HTTP) && base.host.present?
-      raise Error, "Invalid Ollama URL: must be http(s) with a host"
+      raise Error, "Invalid AI endpoint URL: must be http(s) with a host"
     end
 
-    base.path = "/api/chat"
+    base.path = openai_chat_completions_path(base.path)
     base.query = nil
     base.fragment = nil
     base
   rescue URI::InvalidURIError
-    raise Error, "Invalid Ollama URL"
+    raise Error, "Invalid AI endpoint URL"
+  end
+
+  def openai_chat_completions_path(base_path)
+    normalized_path = base_path.to_s.chomp("/")
+    normalized_path = "" if normalized_path == "/"
+
+    if normalized_path.end_with?("/v1")
+      "#{normalized_path}/chat/completions"
+    elsif normalized_path.end_with?("/v1/chat/completions")
+      normalized_path
+    else
+      "#{normalized_path}/v1/chat/completions"
+    end
   end
 end
