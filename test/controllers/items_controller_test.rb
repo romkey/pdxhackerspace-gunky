@@ -331,6 +331,23 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     assert @item.reload.pending?
   end
 
+  test "dispose marks killed item as disposed" do
+    item = items(:killed_item)
+
+    post dispose_item_path(item)
+
+    assert_redirected_to killed_path
+    assert item.reload.disposed?
+  end
+
+  test "dispose rejects non-killed item" do
+    post dispose_item_path(@item)
+
+    assert_redirected_to killed_path
+    assert_equal "Only killed items can be marked as disposed of.", flash[:alert]
+    assert_not @item.reload.disposed?
+  end
+
   test "winner_forfeit removes mine winner and falls back to foster when no mine remains" do
     item = Item.create!(
       description: "Shelf",

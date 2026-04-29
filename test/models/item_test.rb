@@ -69,6 +69,26 @@ class ItemTest < ActiveSupport::TestCase
     assert_nil item.reload.pickup_deadline_date
   end
 
+  test "disposed? reflects disposed_at" do
+    assert_not items(:killed_item).disposed?
+    assert items(:disposed_killed_item).disposed?
+  end
+
+  test "killed disposal scopes separate disposed items" do
+    assert_includes Item.killed_not_disposed, items(:killed_item)
+    assert_not_includes Item.killed_not_disposed, items(:disposed_killed_item)
+    assert_includes Item.killed_disposed, items(:disposed_killed_item)
+    assert_not_includes Item.killed_disposed, items(:killed_item)
+  end
+
+  test "dispose! records disposal time" do
+    item = items(:killed_item)
+
+    assert_changes -> { item.reload.disposed_at }, from: nil do
+      item.dispose!
+    end
+  end
+
   test "vote_summary groups votes by choice" do
     summary = items(:pending_item).vote_summary
     assert_equal 1, summary["mine"]

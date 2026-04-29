@@ -1,7 +1,7 @@
 class ItemsController < ApplicationController
   include Pagy::Method
 
-  before_action :set_item, only: [ :show, :edit, :update, :destroy, :resolve, :describe, :winner_forfeit, :winner_picked_up, :print, :print_browser ]
+  before_action :set_item, only: [ :show, :edit, :update, :destroy, :resolve, :describe, :dispose, :winner_forfeit, :winner_picked_up, :print, :print_browser ]
 
   def index
     items = Item.order(created_at: :desc)
@@ -144,6 +144,16 @@ class ItemsController < ApplicationController
 
     DescribeItemJob.perform_later(@item.id, force: true)
     redirect_to item_path(@item), notice: "AI description requested. It will update shortly."
+  end
+
+  def dispose
+    unless @item.kill?
+      redirect_back fallback_location: killed_path, alert: "Only killed items can be marked as disposed of."
+      return
+    end
+
+    @item.dispose!
+    redirect_back fallback_location: killed_path, notice: "Marked item as disposed of."
   end
 
   def resolve

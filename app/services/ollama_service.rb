@@ -31,6 +31,7 @@ class OllamaService
     http.read_timeout = 120
 
     request = Net::HTTP::Post.new(uri.path, "Content-Type" => "application/json")
+    request["Authorization"] = "Bearer #{@settings.api_key}" if @settings.api_key.present?
     request.body = payload.to_json
 
     response = http.request(request)

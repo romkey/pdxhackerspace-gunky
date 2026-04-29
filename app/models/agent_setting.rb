@@ -3,6 +3,10 @@ class AgentSetting < ApplicationRecord
   validates :ollama_model, presence: true
   validates :prompt, presence: true
 
+  def has_api_key?
+    api_key.present?
+  end
+
   def self.instance
     first_or_create!
   end

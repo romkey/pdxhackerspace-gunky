@@ -32,6 +32,19 @@
       </div>
 
       <div class="mb-3">
+        <%= f.label :api_key, "API key", class: "form-label" %>
+        <%= f.password_field :api_key, value: nil, class: "form-control", autocomplete: "new-password", placeholder: @agent_setting.has_api_key? ? "API key configured" : "Optional" %>
+        <div class="form-text">Optional bearer token sent to the AI endpoint. Leave blank to keep the current key.</div>
+      </div>
+
+      <% if @agent_setting.has_api_key? %>
+        <div class="mb-3 form-check">
+          <%= check_box_tag "agent_setting[clear_api_key]", "1", false, class: "form-check-input", id: "agent_setting_clear_api_key" %>
+          <%= label_tag "agent_setting_clear_api_key", "Clear stored API key", class: "form-check-label" %>
+        </div>
+      <% end %>
+
+      <div class="mb-3">
         <%= f.label :prompt, class: "form-label" %>
         <%= f.text_area :prompt, class: "form-control", rows: 4 %>
         <div class="form-text">The prompt sent to the model along with the photo.</div>

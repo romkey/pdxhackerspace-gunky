@@ -26,6 +26,9 @@ class Item < ApplicationRecord
       .distinct
   }
 
+  scope :killed_not_disposed, -> { kill.where(disposed_at: nil) }
+  scope :killed_disposed, -> { kill.where.not(disposed_at: nil) }
+
   def vote_summary
     votes.group(:choice).count
   end
@@ -91,6 +94,14 @@ class Item < ApplicationRecord
 
   def completed?
     !pending?
+  end
+
+  def disposed?
+    disposed_at.present?
+  end
+
+  def dispose!
+    update!(disposed_at: Time.current)
   end
 
   def pickup_deadline_date

@@ -5,6 +5,7 @@ Rails.application.routes.draw do
   mount Sidekiq::Web => "/sidekiq"
 
   resources :winners, only: [ :index ]
+  get "killed", to: "killed#index", as: :killed
 
   resources :items do
     collection do
@@ -18,6 +19,7 @@ Rails.application.routes.draw do
       get :print_browser
       patch :resolve
       post :describe
+      post :dispose
       post :winner_forfeit
       post :winner_picked_up
     end

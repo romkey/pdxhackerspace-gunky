@@ -1,0 +1,54 @@
+<div class="mb-4">
+  <h1 class="mb-0">Killed</h1>
+  <p class="text-muted mb-0">Items marked for kill, grouped by whether they have been disposed of.</p>
+</div>
+
+<section class="mb-5">
+  <h2 class="h4 mb-3">Awaiting disposal</h2>
+
+  <% if @pending_disposal_items.any? %>
+    <div class="list-group">
+      <% @pending_disposal_items.each do |item| %>
+        <div class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-3">
+          <div>
+            <div class="fw-semibold"><%= link_to item.display_description, item_path(item) %></div>
+            <div class="text-muted small">
+              <%= item.location.presence || "No location" %>
+              <% if item.expiration_date.present? %>
+                &middot; Marked after <%= item.expiration_date.strftime("%b %d, %Y") %>
+              <% end %>
+            </div>
+          </div>
+          <%= button_to "Disposed of",
+                dispose_item_path(item),
+                method: :post,
+                class: "btn btn-outline-success btn-sm" %>
+        </div>
+      <% end %>
+    </div>
+  <% else %>
+    <p class="text-muted">No killed items are awaiting disposal.</p>
+  <% end %>
+</section>
+
+<section>
+  <h2 class="h4 mb-3">Disposed of</h2>
+
+  <% if @disposed_items.any? %>
+    <div class="list-group">
+      <% @disposed_items.each do |item| %>
+        <div class="list-group-item">
+          <div class="fw-semibold"><%= link_to item.display_description, item_path(item) %></div>
+          <div class="text-muted small">
+            <%= item.location.presence || "No location" %>
+            <% if item.disposed_at.present? %>
+              &middot; Disposed <%= item.disposed_at.strftime("%b %d, %Y %l:%M %p") %>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% else %>
+    <p class="text-muted">No killed items have been disposed of yet.</p>
+  <% end %>
+</section>

@@ -27,6 +27,13 @@ killed_item:
   expiration_date: <%= 2.days.ago.to_date %>
   disposition: 3
 
+disposed_killed_item:
+  description: Scrapped power supply
+  location: E-waste bin
+  expiration_date: <%= 3.days.ago.to_date %>
+  disposition: 3
+  disposed_at: <%= 1.day.ago %>
+
 expired_no_votes:
   description: Mystery cables
   location: Box by the door

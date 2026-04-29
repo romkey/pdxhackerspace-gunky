@@ -17,7 +17,13 @@ module Settings
     private
 
     def agent_setting_params
-      params.require(:agent_setting).permit(:ollama_url, :ollama_model, :prompt, :enabled)
+      permitted = params.require(:agent_setting).permit(:ollama_url, :ollama_model, :prompt, :enabled, :api_key, :clear_api_key)
+      if ActiveModel::Type::Boolean.new.cast(permitted.delete(:clear_api_key))
+        permitted[:api_key] = nil
+      elsif permitted[:api_key].blank?
+        permitted.delete(:api_key)
+      end
+      permitted
     end
   end
 end

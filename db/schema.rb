@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_05_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_29_220300) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -43,6 +43,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_05_120000) do
   end
 
   create_table "agent_settings", force: :cascade do |t|
+    t.string "api_key"
     t.datetime "created_at", null: false
     t.boolean "enabled", default: false, null: false
     t.string "ollama_model", default: "llava", null: false
@@ -55,6 +56,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_05_120000) do
     t.text "ai_description"
     t.string "claimed_by"
     t.datetime "created_at", null: false
+    t.datetime "disposed_at"
     t.text "description", null: false
     t.integer "disposition", default: 0, null: false
     t.date "expiration_date"
@@ -62,6 +64,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_05_120000) do
     t.string "slack_channel_id"
     t.string "slack_message_ts"
     t.datetime "updated_at", null: false
+    t.index ["disposed_at"], name: "index_items_on_disposed_at"
     t.index ["disposition"], name: "index_items_on_disposition"
     t.index ["expiration_date"], name: "index_items_on_expiration_date"
   end
