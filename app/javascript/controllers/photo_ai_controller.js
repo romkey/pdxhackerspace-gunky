@@ -30,6 +30,10 @@ export default class extends Controller {
 
     try {
       const data = await this.uploadAndDescribe(file)
+      if (!data.signed_id) {
+        throw new Error("Photo upload did not return a file reference. Try again.")
+      }
+
       this.ensureHiddenPhotoField().value = data.signed_id
       this.clearPhotoInputNames()
 
@@ -40,7 +44,9 @@ export default class extends Controller {
         this.hideQuickCreate()
       }
 
-      if (data.description) {
+      if (data.ai_error) {
+        this.updateStatus(`Photo uploaded. AI description failed: ${data.ai_error}`, true)
+      } else if (data.description) {
         this.updateStatus("Photo uploaded and AI description is ready.")
       } else {
         this.updateStatus("Photo uploaded. AI description is unavailable because the AI agent is disabled.")
@@ -66,12 +72,20 @@ export default class extends Controller {
       body: formData
     })
 
-    const body = await response.json()
+    const body = this.parseJsonResponse(response)
     if (!response.ok) {
       throw new Error(body.error || "Unable to process this photo.")
     }
 
     return body
+  }
+
+  parseJsonResponse(response) {
+    return response.json().catch(() => {
+      throw new Error(
+        `Server returned an invalid response (HTTP ${response.status}). The photo was not saved — try again.`
+      )
+    })
   }
 
   ensureHiddenPhotoField() {

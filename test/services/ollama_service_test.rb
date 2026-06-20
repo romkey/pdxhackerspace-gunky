@@ -88,20 +88,59 @@ class OllamaServiceTest < ActiveSupport::TestCase
     end
   end
 
+  test "describe_image raises readable error on read timeout" do
+    settings = AgentSetting.new(
+      ollama_url: "http://ollama.example.test",
+      ollama_model: "llava",
+      prompt: "Describe this"
+    )
+    http = FakeHttp.new
+    http.raise_on_request = Net::ReadTimeout.new("execution expired")
+
+    with_fake_http(http) do
+      error = assert_raises(OllamaService::Error) do
+        OllamaService.new(settings).describe_image(FakeBlob.new("fake image"))
+      end
+
+      assert_match(/read timed out after #{OllamaService::READ_TIMEOUT_SECONDS}s/, error.message)
+      assert_match(/llava/, error.message)
+    end
+  end
+
+  test "describe_image raises readable error on invalid JSON response" do
+    settings = AgentSetting.new(
+      ollama_url: "http://ollama.example.test",
+      ollama_model: "llava",
+      prompt: "Describe this"
+    )
+    http = FakeHttp.new
+    http.response_body = "not json"
+
+    with_fake_http(http) do
+      error = assert_raises(OllamaService::Error) do
+        OllamaService.new(settings).describe_image(FakeBlob.new("fake image"))
+      end
+
+      assert_match(/invalid JSON/, error.message)
+    end
+  end
+
   private
 
   FakeBlob = Data.define(:download)
 
   class FakeHttp
     attr_reader :last_request
-
-    attr_accessor :use_ssl, :open_timeout, :read_timeout
+    attr_accessor :use_ssl, :open_timeout, :read_timeout, :raise_on_request, :response_body
 
     def request(request)
+      raise raise_on_request if raise_on_request
+
       @last_request = request
       Net::HTTPOK.new("1.1", "200", "OK").tap do |response|
         response.instance_variable_set(:@read, true)
-        response.instance_variable_set(:@body, { choices: [ { message: { content: "A red toolbox." } } ] }.to_json)
+        body = response_body || { choices: [ { message: { content: "A red toolbox." } } ] }.to_json
+        response.instance_variable_set(:@body, body)
       end
     end
   end

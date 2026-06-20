@@ -271,7 +271,37 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     payload = JSON.parse(response.body)
     assert_nil payload["description"]
+    assert_nil payload["ai_error"]
     assert payload["signed_id"].present?
+  ensure
+    file&.close
+    file&.unlink
+  end
+
+  test "preview_description keeps photo when AI fails" do
+    file = Tempfile.new([ "item-photo", ".jpg" ])
+    file.binmode
+    file.write("fake image bytes")
+    file.rewind
+
+    upload = Rack::Test::UploadedFile.new(file.path, "image/jpeg", true, original_filename: "item.jpg")
+
+    with_overridden_class_method(AgentSetting, :enabled?, -> { true }) do
+      with_overridden_instance_method(
+        OllamaService,
+        :describe_image,
+        ->(_blob) { raise OllamaService::Error, "AI endpoint read timed out after 30s" }
+      ) do
+        post preview_description_items_path, params: { photo: upload }
+      end
+    end
+
+    assert_response :success
+    payload = JSON.parse(response.body)
+    assert_nil payload["description"]
+    assert_equal "AI endpoint read timed out after 30s", payload["ai_error"]
+    assert payload["signed_id"].present?
+    assert ActiveStorage::Blob.find_signed(payload["signed_id"]).present?
   ensure
     file&.close
     file&.unlink

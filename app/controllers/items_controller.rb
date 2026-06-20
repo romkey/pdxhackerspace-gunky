@@ -56,16 +56,28 @@ class ItemsController < ApplicationController
       filename: photo.respond_to?(:original_filename) ? photo.original_filename : "upload.jpg",
       content_type: photo.respond_to?(:content_type) ? photo.content_type : nil
     )
+    Rails.logger.info(
+      "preview_description: uploaded photo blob #{blob.key} " \
+      "(#{blob.byte_size} bytes, #{blob.content_type})"
+    )
 
     ai_description = nil
+    ai_error = nil
     if AgentSetting.enabled?
-      ai_description = OllamaService.new.describe_image(blob)
+      begin
+        ai_description = OllamaService.new.describe_image(blob)
+        Rails.logger.info(
+          "preview_description: AI description for blob #{blob.key}: #{ai_description.truncate(100)}"
+        )
+      rescue OllamaService::Error => e
+        ai_error = e.message
+        Rails.logger.error("preview_description: AI failed for blob #{blob.key}: #{ai_error}")
+      end
+    else
+      Rails.logger.info("preview_description: AI agent disabled, skipping description for blob #{blob.key}")
     end
 
-    render json: { signed_id: blob.signed_id, description: ai_description }
-  rescue OllamaService::Error => e
-    blob&.purge_later
-    render json: { error: e.message }, status: :unprocessable_entity
+    render json: { signed_id: blob.signed_id, description: ai_description, ai_error: ai_error }
   end
 
   def edit

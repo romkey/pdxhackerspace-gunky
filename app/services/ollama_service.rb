@@ -5,14 +5,22 @@ require "base64"
 class OllamaService
   class Error < StandardError; end
 
+  OPEN_TIMEOUT_SECONDS = ENV.fetch("OLLAMA_OPEN_TIMEOUT_SECONDS", 5).to_i
+  READ_TIMEOUT_SECONDS = ENV.fetch("OLLAMA_READ_TIMEOUT_SECONDS", 30).to_i
+
   def initialize(settings = nil)
     @settings = settings || AgentSetting.instance
   end
 
   def describe_image(image_blob)
+    uri = endpoint_uri
+    Rails.logger.info(
+      "OllamaService: describing image via #{uri} model=#{@settings.ollama_model} " \
+      "(timeouts: open=#{OPEN_TIMEOUT_SECONDS}s read=#{READ_TIMEOUT_SECONDS}s)"
+    )
+
     image_data = Base64.strict_encode64(image_blob.download)
 
-    uri = endpoint_uri
     payload = {
       model: @settings.ollama_model,
       messages: [
@@ -29,23 +37,51 @@ class OllamaService
 
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = uri.scheme == "https"
-    http.open_timeout = 10
-    http.read_timeout = 120
+    http.open_timeout = OPEN_TIMEOUT_SECONDS
+    http.read_timeout = READ_TIMEOUT_SECONDS
 
     request = Net::HTTP::Post.new(uri.path, "Content-Type" => "application/json")
     request["Authorization"] = "Bearer #{@settings.api_key}" if @settings.api_key.present?
     request.body = payload.to_json
 
-    response = http.request(request)
+    response = request_with_diagnostics(http, request, uri)
 
-    raise Error, "AI endpoint returned #{response.code}: #{response.body.truncate(200)}" unless response.is_a?(Net::HTTPSuccess)
+    unless response.is_a?(Net::HTTPSuccess)
+      Rails.logger.error(
+        "OllamaService: HTTP #{response.code} from #{uri}: #{response.body.to_s.truncate(500)}"
+      )
+      raise Error, "AI endpoint returned HTTP #{response.code}: #{response.body.to_s.truncate(200)}"
+    end
 
-    parsed = JSON.parse(response.body)
+    parsed = parse_response_json(response.body, uri)
     response_text(parsed)&.strip.presence ||
-      raise(Error, "AI endpoint returned empty response")
+      raise(Error, "AI endpoint returned empty description text")
   end
 
   private
+
+  def request_with_diagnostics(http, request, uri)
+    http.request(request)
+  rescue Net::OpenTimeout => e
+    raise Error,
+          "AI endpoint connection timed out after #{OPEN_TIMEOUT_SECONDS}s " \
+          "(#{uri.host}:#{uri.port}): #{e.message}"
+  rescue Net::ReadTimeout => e
+    raise Error,
+          "AI endpoint read timed out after #{READ_TIMEOUT_SECONDS}s waiting for " \
+          "#{@settings.ollama_model} at #{uri}: #{e.message}"
+  rescue Errno::ECONNREFUSED => e
+    raise Error, "AI endpoint refused connection at #{uri.host}:#{uri.port}: #{e.message}"
+  rescue SocketError, Errno::EHOSTUNREACH, Errno::ENETUNREACH => e
+    raise Error, "AI endpoint network error for #{uri}: #{e.message}"
+  end
+
+  def parse_response_json(body, uri)
+    JSON.parse(body)
+  rescue JSON::ParserError => e
+    Rails.logger.error("OllamaService: invalid JSON from #{uri}: #{body.to_s.truncate(500)}")
+    raise Error, "AI endpoint returned invalid JSON: #{e.message}"
+  end
 
   def response_text(parsed)
     content = parsed.dig("choices", 0, "message", "content")
