@@ -41,25 +41,16 @@ class ItemsController < ApplicationController
     end
   end
 
+  def preview_photo
+    blob = upload_preview_photo(params[:photo])
+    return if performed?
+
+    render json: { signed_id: blob.signed_id }
+  end
+
   def preview_description
-    photo = params[:photo]
-    if photo.blank?
-      render json: { error: "Photo is required." }, status: :unprocessable_entity
-      return
-    end
-
-    io = photo.respond_to?(:tempfile) ? photo.tempfile : photo
-    io.rewind if io.respond_to?(:rewind)
-
-    blob = ActiveStorage::Blob.create_and_upload!(
-      io: io,
-      filename: photo.respond_to?(:original_filename) ? photo.original_filename : "upload.jpg",
-      content_type: photo.respond_to?(:content_type) ? photo.content_type : nil
-    )
-    Rails.logger.info(
-      "preview_description: uploaded photo blob #{blob.key} " \
-      "(#{blob.byte_size} bytes, #{blob.content_type})"
-    )
+    blob = find_preview_blob(params[:signed_id])
+    return if performed?
 
     ai_description = nil
     ai_error = nil
@@ -218,5 +209,44 @@ class ItemsController < ApplicationController
 
   def winner_vote_for(item)
     item.votes.find_by(slack_user_id: params[:slack_user_id].to_s, choice: :mine)
+  end
+
+  def upload_preview_photo(photo)
+    if photo.blank?
+      render json: { error: "Photo is required." }, status: :unprocessable_entity
+      return nil
+    end
+
+    io = photo.respond_to?(:tempfile) ? photo.tempfile : photo
+    io.rewind if io.respond_to?(:rewind)
+
+    blob = ActiveStorage::Blob.create_and_upload!(
+      io: io,
+      filename: photo.respond_to?(:original_filename) ? photo.original_filename : "upload.jpg",
+      content_type: photo.respond_to?(:content_type) ? photo.content_type : nil
+    )
+    Rails.logger.info(
+      "preview_photo: uploaded blob #{blob.key} " \
+      "(#{blob.byte_size} bytes, #{blob.content_type})"
+    )
+    blob
+  end
+
+  def find_preview_blob(signed_id)
+    if signed_id.blank?
+      render json: { error: "signed_id is required." }, status: :unprocessable_entity
+      return nil
+    end
+
+    blob = ActiveStorage::Blob.find_signed(signed_id)
+    unless blob
+      render json: { error: "Photo not found." }, status: :unprocessable_entity
+      return nil
+    end
+
+    blob
+  rescue ActiveSupport::MessageVerifier::InvalidSignature
+    render json: { error: "Photo reference is invalid." }, status: :unprocessable_entity
+    nil
   end
 end

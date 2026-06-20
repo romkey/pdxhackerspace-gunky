@@ -9,6 +9,7 @@ Rails.application.routes.draw do
 
   resources :items do
     collection do
+      post :preview_photo
       post :preview_description
       post :print_completed
       get :print_completed_browser

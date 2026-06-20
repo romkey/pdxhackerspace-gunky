@@ -1,19 +1,30 @@
 import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
-  static targets = ["description", "photoInput", "status", "preview", "previewWrapper", "quickCreateWrapper"]
+  static targets = ["description", "photoInput", "status", "preview", "previewWrapper", "quickCreateWrapper", "submit"]
   static values = {
-    uploadUrl: String
+    uploadUrl: String,
+    describeUrl: String
   }
 
   connect() {
     this.originalPhotoInputName = this.photoInputTargets[0]?.name || "item[photo]"
     this.previewObjectUrl = null
+    this.uploadInProgress = false
     this.hideQuickCreate()
+    this.element.addEventListener("submit", this.handleSubmit)
   }
 
   disconnect() {
+    this.element.removeEventListener("submit", this.handleSubmit)
     this.revokePreviewObjectUrl()
+  }
+
+  handleSubmit = (event) => {
+    if (this.uploadInProgress) {
+      event.preventDefault()
+      this.updateStatus("Still uploading the photo — wait a moment and try again.", true)
+    }
   }
 
   async selected(event) {
@@ -25,17 +36,38 @@ export default class extends Controller {
     this.restorePhotoInputNames()
     this.removeHiddenPhotoField()
 
+    this.uploadInProgress = true
     this.setPhotoInputsDisabled(true)
-    this.updateStatus("Uploading photo and generating AI description...")
+    this.setSubmitDisabled(true)
+    this.updateStatus("Uploading photo...")
 
     try {
-      const data = await this.uploadAndDescribe(file)
-      if (!data.signed_id) {
+      const uploadData = await this.uploadPhoto(file)
+      if (!uploadData.signed_id) {
         throw new Error("Photo upload did not return a file reference. Try again.")
       }
 
-      this.ensureHiddenPhotoField().value = data.signed_id
+      this.ensureHiddenPhotoField().value = uploadData.signed_id
       this.clearPhotoInputNames()
+      this.updateStatus("Photo uploaded. Generating AI description...")
+
+      this.uploadInProgress = false
+      this.setSubmitDisabled(false)
+
+      await this.describePhoto(uploadData.signed_id)
+    } catch (error) {
+      this.restorePhotoInputNames()
+      this.updateStatus(error.message, true)
+    } finally {
+      this.uploadInProgress = false
+      this.setPhotoInputsDisabled(false)
+      this.setSubmitDisabled(false)
+    }
+  }
+
+  async describePhoto(signedId) {
+    try {
+      const data = await this.requestDescribe(signedId)
 
       if (this.descriptionTarget.value.trim() === "" && data.description) {
         this.descriptionTarget.value = data.description
@@ -52,14 +84,11 @@ export default class extends Controller {
         this.updateStatus("Photo uploaded. AI description is unavailable because the AI agent is disabled.")
       }
     } catch (error) {
-      this.restorePhotoInputNames()
-      this.updateStatus(error.message, true)
-    } finally {
-      this.setPhotoInputsDisabled(false)
+      this.updateStatus(`Photo uploaded. AI description failed: ${error.message}`, true)
     }
   }
 
-  async uploadAndDescribe(file) {
+  async uploadPhoto(file) {
     const formData = new FormData()
     formData.append("photo", file)
 
@@ -72,15 +101,36 @@ export default class extends Controller {
       body: formData
     })
 
-    const body = this.parseJsonResponse(response)
+    const body = await this.parseJsonResponse(response)
     if (!response.ok) {
-      throw new Error(body.error || "Unable to process this photo.")
+      throw new Error(body.error || "Unable to upload this photo.")
     }
 
     return body
   }
 
-  parseJsonResponse(response) {
+  async requestDescribe(signedId) {
+    const formData = new FormData()
+    formData.append("signed_id", signedId)
+
+    const response = await fetch(this.describeUrlValue, {
+      method: "POST",
+      headers: {
+        "Accept": "application/json",
+        "X-CSRF-Token": this.csrfToken()
+      },
+      body: formData
+    })
+
+    const body = await this.parseJsonResponse(response)
+    if (!response.ok) {
+      throw new Error(body.error || "Unable to generate an AI description.")
+    }
+
+    return body
+  }
+
+  async parseJsonResponse(response) {
     return response.json().catch(() => {
       throw new Error(
         `Server returned an invalid response (HTTP ${response.status}). The photo was not saved — try again.`
@@ -147,6 +197,14 @@ export default class extends Controller {
   setPhotoInputsDisabled(disabled) {
     this.photoInputTargets.forEach((input) => {
       input.disabled = disabled
+    })
+  }
+
+  setSubmitDisabled(disabled) {
+    if (!this.hasSubmitTarget) return
+
+    this.submitTargets.forEach((button) => {
+      button.disabled = disabled
     })
   }
 

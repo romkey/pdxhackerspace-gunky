@@ -3,7 +3,8 @@
   class: "needs-validation",
   data: {
     controller: "photo-ai",
-    photo_ai_upload_url_value: preview_description_items_path
+    photo_ai_upload_url_value: preview_photo_items_path,
+    photo_ai_describe_url_value: preview_description_items_path
   }
 ) do |f| %>
   <% if item.errors.any? %>
@@ -66,14 +67,14 @@
   </div>
 
   <div class="mb-3 d-none" data-photo-ai-target="quickCreateWrapper">
-    <button type="submit" name="create_and_add_another" value="1" class="btn btn-success w-100">
+    <button type="submit" name="create_and_add_another" value="1" class="btn btn-success w-100" data-photo-ai-target="submit">
       Create Item & Add Another
     </button>
     <div class="form-text mt-1">Saves this item and jumps right back to a fresh New Item form.</div>
   </div>
 
   <div class="d-flex flex-wrap gap-2">
-    <%= f.submit class: "btn btn-primary" %>
+    <%= f.submit class: "btn btn-primary", data: { photo_ai_target: "submit" } %>
     <%= link_to "Cancel", items_path, class: "btn btn-outline-secondary" %>
   </div>
 <% end %>

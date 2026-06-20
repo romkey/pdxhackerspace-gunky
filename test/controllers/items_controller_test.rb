@@ -223,9 +223,9 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
 
   # Edit
 
-  # Preview description
+  # Preview photo and description
 
-  test "preview_description uploads photo and returns AI description" do
+  test "preview_photo uploads photo and returns signed_id" do
     file = Tempfile.new([ "item-photo", ".jpg" ])
     file.binmode
     file.write("fake image bytes")
@@ -233,15 +233,10 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
 
     upload = Rack::Test::UploadedFile.new(file.path, "image/jpeg", true, original_filename: "item.jpg")
 
-    with_overridden_class_method(AgentSetting, :enabled?, -> { true }) do
-      with_overridden_instance_method(OllamaService, :describe_image, ->(_blob) { "AI found a red toolbox." }) do
-        post preview_description_items_path, params: { photo: upload }
-      end
-    end
+    post preview_photo_items_path, params: { photo: upload }
 
     assert_response :success
     payload = JSON.parse(response.body)
-    assert_equal "AI found a red toolbox.", payload["description"]
     assert payload["signed_id"].present?
     assert ActiveStorage::Blob.find_signed(payload["signed_id"]).present?
   ensure
@@ -249,36 +244,14 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     file&.unlink
   end
 
-  test "preview_description returns error without photo" do
-    post preview_description_items_path
+  test "preview_photo returns error without photo" do
+    post preview_photo_items_path
 
     assert_response :unprocessable_entity
     assert_equal "Photo is required.", JSON.parse(response.body)["error"]
   end
 
-  test "preview_description uploads photo when AI disabled" do
-    file = Tempfile.new([ "item-photo", ".jpg" ])
-    file.binmode
-    file.write("fake image bytes")
-    file.rewind
-
-    upload = Rack::Test::UploadedFile.new(file.path, "image/jpeg", true, original_filename: "item.jpg")
-
-    with_overridden_class_method(AgentSetting, :enabled?, -> { false }) do
-      post preview_description_items_path, params: { photo: upload }
-    end
-
-    assert_response :success
-    payload = JSON.parse(response.body)
-    assert_nil payload["description"]
-    assert_nil payload["ai_error"]
-    assert payload["signed_id"].present?
-  ensure
-    file&.close
-    file&.unlink
-  end
-
-  test "preview_description keeps photo when AI fails" do
+  test "preview_photo does not call AI" do
     file = Tempfile.new([ "item-photo", ".jpg" ])
     file.binmode
     file.write("fake image bytes")
@@ -290,9 +263,108 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
       with_overridden_instance_method(
         OllamaService,
         :describe_image,
+        ->(_blob) { raise "AI should not run during photo upload" }
+      ) do
+        post preview_photo_items_path, params: { photo: upload }
+      end
+    end
+
+    assert_response :success
+    assert JSON.parse(response.body)["signed_id"].present?
+  ensure
+    file&.close
+    file&.unlink
+  end
+
+  test "create attaches photo from preview_photo before AI description runs" do
+    file = Tempfile.new([ "item-photo", ".jpg" ])
+    file.binmode
+    file.write("fake image bytes")
+    file.rewind
+
+    upload = Rack::Test::UploadedFile.new(file.path, "image/jpeg", true, original_filename: "item.jpg")
+
+    post preview_photo_items_path, params: { photo: upload }
+    signed_id = JSON.parse(response.body)["signed_id"]
+
+    assert_difference "Item.count", 1 do
+      post items_path, params: { item: { description: "car", photo: signed_id } }
+    end
+
+    created_item = Item.last
+    assert created_item.photo.attached?
+    assert_equal "car", created_item.description
+    assert_redirected_to item_path(created_item)
+  ensure
+    file&.close
+    file&.unlink
+  end
+
+  test "preview_description returns AI description for signed photo" do
+    blob = ActiveStorage::Blob.create_and_upload!(
+      io: StringIO.new("fake image bytes"),
+      filename: "item.jpg",
+      content_type: "image/jpeg"
+    )
+
+    with_overridden_class_method(AgentSetting, :enabled?, -> { true }) do
+      with_overridden_instance_method(OllamaService, :describe_image, ->(_blob) { "AI found a red toolbox." }) do
+        post preview_description_items_path, params: { signed_id: blob.signed_id }
+      end
+    end
+
+    assert_response :success
+    payload = JSON.parse(response.body)
+    assert_equal "AI found a red toolbox.", payload["description"]
+    assert_equal blob.signed_id, payload["signed_id"]
+  end
+
+  test "preview_description returns error without signed_id" do
+    post preview_description_items_path
+
+    assert_response :unprocessable_entity
+    assert_equal "signed_id is required.", JSON.parse(response.body)["error"]
+  end
+
+  test "preview_description returns error for invalid signed_id" do
+    post preview_description_items_path, params: { signed_id: "not-a-valid-signed-id" }
+
+    assert_response :unprocessable_entity
+    assert_equal "Photo not found.", JSON.parse(response.body)["error"]
+  end
+
+  test "preview_description skips AI when agent disabled" do
+    blob = ActiveStorage::Blob.create_and_upload!(
+      io: StringIO.new("fake image bytes"),
+      filename: "item.jpg",
+      content_type: "image/jpeg"
+    )
+
+    with_overridden_class_method(AgentSetting, :enabled?, -> { false }) do
+      post preview_description_items_path, params: { signed_id: blob.signed_id }
+    end
+
+    assert_response :success
+    payload = JSON.parse(response.body)
+    assert_nil payload["description"]
+    assert_nil payload["ai_error"]
+    assert_equal blob.signed_id, payload["signed_id"]
+  end
+
+  test "preview_description returns ai_error when AI fails" do
+    blob = ActiveStorage::Blob.create_and_upload!(
+      io: StringIO.new("fake image bytes"),
+      filename: "item.jpg",
+      content_type: "image/jpeg"
+    )
+
+    with_overridden_class_method(AgentSetting, :enabled?, -> { true }) do
+      with_overridden_instance_method(
+        OllamaService,
+        :describe_image,
         ->(_blob) { raise OllamaService::Error, "AI endpoint read timed out after 30s" }
       ) do
-        post preview_description_items_path, params: { photo: upload }
+        post preview_description_items_path, params: { signed_id: blob.signed_id }
       end
     end
 
@@ -300,11 +372,8 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     payload = JSON.parse(response.body)
     assert_nil payload["description"]
     assert_equal "AI endpoint read timed out after 30s", payload["ai_error"]
-    assert payload["signed_id"].present?
+    assert_equal blob.signed_id, payload["signed_id"]
     assert ActiveStorage::Blob.find_signed(payload["signed_id"]).present?
-  ensure
-    file&.close
-    file&.unlink
   end
 
   test "edit returns success" do
