@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Runtime libvips for ruby-vips. Compose run containers are ephemeral, so install when missing.
+if ! ldconfig -p 2>/dev/null | grep -q 'libvips\.so'; then
+  apt-get update -qq
+  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libvips42 >/dev/null
+fi
+
 # One-time OS packages for native gems (pg, bootsnap, ruby-vips, etc.).
 # Marker lives on the bundle volume so it persists across runs.
-MARKER="${BUNDLE_PATH:-/usr/local/bundle}/.gunky-test-apt-installed"
+MARKER="${BUNDLE_PATH:-/usr/local/bundle}/.gunky-test-apt-v2-installed"
 if [[ ! -f "${MARKER}" ]]; then
   apt-get update -qq
   DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -12,6 +18,7 @@ if [[ ! -f "${MARKER}" ]]; then
     curl \
     git \
     libpq-dev \
+    libvips42 \
     libvips-dev \
     libyaml-dev \
     nodejs \
