@@ -39,3 +39,16 @@ expired_no_votes:
   location: Box by the door
   expiration_date: <%= 1.day.ago.to_date %>
   disposition: 0
+
+owned_item:
+  description: Member's personal drill
+  location: Tool wall
+  expiration_date: <%= 2.days.ago.to_date %>
+  disposition: 4
+  claimed_by: pat
+
+cancelled_item:
+  description: Duplicate stapler
+  location: Office
+  expiration_date: <%= 4.days.ago.to_date %>
+  disposition: 4

@@ -118,6 +118,27 @@ class SlackServiceTest < ActiveSupport::TestCase
     assert_includes context_block[:elements].first[:text], "Alice Display"
   end
 
+  test "cancel_item_message shows giveaway cancelled message without owner" do
+    service = SlackService.new
+    client = FakeSlackClient.new
+    service.instance_variable_set(:@client, client)
+
+    @item.update!(
+      disposition: :cancelled,
+      claimed_by: nil,
+      slack_message_ts: "1234567890.123456",
+      slack_channel_id: "C0123456789"
+    )
+
+    service.cancel_item_message(@item.reload)
+
+    context_block = client.update_calls.first[:blocks].find do |b|
+      b[:type] == "context" && b[:elements].any? { |entry| entry[:text].include?("Giveaway cancelled") }
+    end
+    assert_not_nil context_block
+    assert_not_includes context_block[:elements].first[:text], "owned by"
+  end
+
   test "build_item_blocks omits action buttons for resolved item" do
     service = SlackService.new
     blocks = service.send(:build_item_blocks, @posted_item)

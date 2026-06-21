@@ -16,13 +16,25 @@
   </div>
 </div>
 
+<div class="alert alert-light border mb-4" role="status">
+  <div class="fw-semibold mb-2">Gunky stats</div>
+  <div class="d-flex flex-wrap gap-3">
+    <span><strong><%= @stats[:total] %></strong> total gunky'd</span>
+    <span><strong><%= @stats[:new_homes] %></strong> new homes</span>
+    <span><strong><%= @stats[:kept_for_space] %></strong> kept for space</span>
+    <span><strong><%= @stats[:trashed] %></strong> trashed</span>
+    <span><strong><%= @stats[:owners_found] %></strong> owners found</span>
+    <span><strong><%= @stats[:cancelled] %></strong> cancelled</span>
+  </div>
+</div>
+
 <ul class="nav nav-pills mb-4">
   <li class="nav-item">
     <%= link_to "All", items_path, class: "nav-link #{params[:disposition].blank? ? 'active' : ''}" %>
   </li>
-  <% Item.dispositions.each_key do |d| %>
+  <% index_filter_tabs.each do |label, filter| %>
     <li class="nav-item">
-      <%= link_to d.capitalize, items_path(disposition: d), class: "nav-link #{params[:disposition] == d ? 'active' : ''}" %>
+      <%= link_to label, items_path(disposition: filter), class: "nav-link #{index_tab_active?(filter) ? 'active' : ''}" %>
     </li>
   <% end %>
 </ul>
@@ -44,14 +56,28 @@
             <p class="card-text text-muted mb-1">
               <small><%= item.location.presence || "No location" %></small>
             </p>
-            <span class="badge <%= disposition_badge_class(item.disposition) %>"><%= item.disposition.capitalize %></span>
+            <span class="badge <%= disposition_badge_class(item.disposition) %>"><%= item_disposition_label(item) %></span>
             <% if item.expired? && item.pending? %>
               <span class="badge bg-warning text-dark">Expired</span>
             <% end %>
-            <% if item.cancelled? && item.claimed_by.present? %>
+            <% if item.owned? %>
               <p class="mt-2 mb-0 text-muted">
                 <small>Kept by <%= item.claimed_by %></small>
               </p>
+            <% end %>
+
+            <% if item.pending? %>
+              <div class="mt-3 d-flex flex-wrap gap-2 align-items-start">
+                <%= button_to "Cancel",
+                      cancel_giveaway_item_path(item),
+                      method: :post,
+                      class: "btn btn-outline-secondary btn-sm",
+                      form: { data: { turbo_confirm: "Cancel this giveaway?" } } %>
+                <%= form_with url: claim_ownership_item_path(item), method: :post, class: "d-flex flex-wrap gap-2 align-items-center" do |f| %>
+                  <%= f.text_field :claimed_by, class: "form-control form-control-sm", placeholder: "Owner name", required: true, style: "max-width: 10rem;" %>
+                  <%= f.submit "I Own This", class: "btn btn-outline-dark btn-sm" %>
+                <% end %>
+              </div>
             <% end %>
 
             <% if item.mine? && item.mine_voters_pending_pickup.any? %>
@@ -65,7 +91,7 @@
                         winner_forfeit_item_path(item, slack_user_id: winner[:slack_user_id]),
                         method: :post,
                         class: "btn btn-outline-danger btn-sm",
-                        form: { data: { turbo_confirm: "Remove #{winner[:slack_username]} from Mine winners?" } } %>
+                        form: { data: { turbo_confirm: "Remove #{winner[:slack_username]} from Want winners?" } } %>
                       <%= button_to "Picked up",
                         winner_picked_up_item_path(item, slack_user_id: winner[:slack_user_id]),
                         method: :post,
