@@ -124,16 +124,16 @@
       <% end %>
 
       <h6 class="mt-3 mb-2">Giveaway actions</h6>
-      <div class="d-flex flex-wrap gap-3 align-items-start mb-3">
-        <%= form_with url: cancel_giveaway_item_path(@item), method: :post, class: "d-flex flex-wrap gap-2 align-items-center" do |f| %>
-          <%= f.text_field :cancellation_reason, class: "form-control form-control-sm", placeholder: "Reason (optional)", style: "max-width: 12rem;" %>
-          <%= f.submit "Cancel", class: "btn btn-outline-secondary btn-sm", data: { turbo_confirm: "Cancel this giveaway?" } %>
-        <% end %>
-        <%= form_with url: cancel_and_relist_item_path(@item), method: :post, class: "d-flex flex-wrap gap-2 align-items-center" do |f| %>
-          <%= f.text_field :cancellation_reason, class: "form-control form-control-sm", placeholder: "Reason (optional)", style: "max-width: 12rem;" %>
-          <%= f.submit "Cancel and relist", class: "btn btn-outline-primary btn-sm", data: { turbo_confirm: "Cancel this listing and open a fresh New Item form?" } %>
-        <% end %>
-      </div>
+      <%= form_with url: cancel_giveaway_item_path(@item), method: :post, class: "d-flex flex-wrap gap-2 align-items-center mb-3" do |f| %>
+        <%= f.text_field :cancellation_reason, class: "form-control form-control-sm", placeholder: "Reason (optional)", style: "max-width: 12rem;" %>
+        <%= f.submit "Cancel", class: "btn btn-outline-secondary btn-sm", data: { turbo_confirm: "Cancel this giveaway?" } %>
+        <%= button_tag "Cancel and relist",
+              type: "submit",
+              formaction: cancel_and_relist_item_path(@item),
+              formmethod: "post",
+              class: "btn btn-outline-primary btn-sm",
+              data: { turbo_confirm: "Cancel this listing and open a fresh New Item form?" } %>
+      <% end %>
     <% elsif @item.owned? %>
       <hr>
       <h6 class="mb-2">Giveaway actions</h6>

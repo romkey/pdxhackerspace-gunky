@@ -282,7 +282,9 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     get item_path(@item)
 
     assert_select "form[action='#{cancel_giveaway_item_path(@item)}']"
-    assert_select "form[action='#{cancel_and_relist_item_path(@item)}']"
+    assert_select "form[action='#{cancel_and_relist_item_path(@item)}']", count: 0
+    assert_select "input[name='cancellation_reason']", count: 1
+    assert_select "button[formaction='#{cancel_and_relist_item_path(@item)}']"
   end
 
   test "show offers cancel and relist for owned item" do
