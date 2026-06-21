@@ -1,11 +1,15 @@
 class ItemsController < ApplicationController
   include Pagy::Method
 
-  before_action :set_item, only: [ :show, :edit, :update, :destroy, :resolve, :describe, :dispose, :winner_forfeit, :winner_picked_up, :print, :print_browser ]
+  before_action :set_item, only: [
+    :show, :edit, :update, :destroy, :resolve, :describe, :dispose,
+    :winner_forfeit, :winner_picked_up, :print, :print_browser,
+    :cancel_giveaway, :claim_ownership
+  ]
 
   def index
-    items = Item.order(created_at: :desc)
-    items = items.where(disposition: params[:disposition]) if params[:disposition].present?
+    items = filtered_items.order(created_at: :desc)
+    @stats = Item.gunky_stats
     @pagy, @items = pagy(:offset, items)
   end
 
@@ -198,7 +202,49 @@ class ItemsController < ApplicationController
     redirect_back fallback_location: items_path, notice: "Marked #{winner.slack_username} as picked up."
   end
 
+  def cancel_giveaway
+    unless @item.pending?
+      redirect_back fallback_location: items_path, alert: "Only pending items can be cancelled."
+      return
+    end
+
+    @item.update!(disposition: :cancelled, claimed_by: nil)
+    SlackService.new.cancel_item_message(@item)
+    redirect_back fallback_location: items_path, notice: "Giveaway cancelled."
+  end
+
+  def claim_ownership
+    unless @item.pending?
+      redirect_back fallback_location: items_path, alert: "Only pending items can be marked as owned."
+      return
+    end
+
+    claimed_by = params[:claimed_by].to_s.strip
+    if claimed_by.blank?
+      redirect_back fallback_location: items_path, alert: "Owner name is required."
+      return
+    end
+
+    @item.update!(disposition: :cancelled, claimed_by: claimed_by)
+    SlackService.new.cancel_item_message(@item)
+    redirect_back fallback_location: items_path, notice: "Marked as owned by #{claimed_by}."
+  end
+
   private
+
+  def filtered_items
+    disposition = params[:disposition].to_s
+
+    if disposition == "owned"
+      Item.owned
+    elsif disposition == "cancelled"
+      Item.giveaway_cancelled
+    elsif disposition.present? && Item.dispositions.key?(disposition)
+      Item.where(disposition: disposition)
+    else
+      Item.all
+    end
+  end
 
   def set_item
     @item = Item.find(params[:id])

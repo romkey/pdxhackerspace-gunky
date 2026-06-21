@@ -1,4 +1,20 @@
 module ItemsHelper
+  INDEX_FILTER_TABS = [
+    [ "Pending", "pending" ],
+    [ "Want", "mine" ],
+    [ "Keep", "foster" ],
+    [ "Trash", "kill" ],
+    [ "Owned", "owned" ]
+  ].freeze
+
+  DISPOSITION_LABELS = {
+    "pending" => "Pending",
+    "mine" => "Want",
+    "foster" => "Keep",
+    "kill" => "Trash",
+    "cancelled" => "Cancelled"
+  }.freeze
+
   DISPOSITION_BADGES = {
     "pending" => "bg-secondary",
     "mine"    => "bg-primary",
@@ -21,6 +37,24 @@ module ItemsHelper
 
   def disposition_badge_class(disposition)
     DISPOSITION_BADGES[disposition] || "bg-secondary"
+  end
+
+  def disposition_label(disposition)
+    DISPOSITION_LABELS[disposition.to_s] || disposition.to_s.capitalize
+  end
+
+  def item_disposition_label(item)
+    return "Owned" if item.owned?
+
+    disposition_label(item.disposition)
+  end
+
+  def index_filter_tabs
+    INDEX_FILTER_TABS
+  end
+
+  def index_tab_active?(filter)
+    params[:disposition].to_s == filter.to_s
   end
 
   def vote_badge_class(choice)

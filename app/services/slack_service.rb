@@ -306,10 +306,15 @@ class SlackService
     end
 
     if item.cancelled?
-      owner = item.claimed_by.presence || "Owner"
+      message =
+        if item.claimed_by.present?
+          ":no_entry_sign: Unavailable - owned by #{item.claimed_by}. Giveaway halted."
+        else
+          ":no_entry_sign: Giveaway cancelled."
+        end
       blocks << {
         type: "context",
-        elements: [ { type: "mrkdwn", text: ":no_entry_sign: Unavailable - owned by #{owner}. Giveaway halted." } ]
+        elements: [ { type: "mrkdwn", text: message } ]
       }
     end
 

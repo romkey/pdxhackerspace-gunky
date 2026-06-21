@@ -28,6 +28,28 @@ class Item < ApplicationRecord
 
   scope :killed_not_disposed, -> { kill.where(disposed_at: nil) }
   scope :killed_disposed, -> { kill.where.not(disposed_at: nil) }
+  scope :owned, -> { cancelled.where.not(claimed_by: [ nil, "" ]) }
+  scope :giveaway_cancelled, -> { cancelled.where(claimed_by: [ nil, "" ]) }
+  scope :gunky_completed, -> { where.not(disposition: :pending) }
+
+  def self.gunky_stats
+    {
+      total: gunky_completed.count,
+      new_homes: mine.count,
+      kept_for_space: foster.count,
+      trashed: kill.count,
+      owners_found: owned.count,
+      cancelled: giveaway_cancelled.count
+    }
+  end
+
+  def owned?
+    cancelled? && claimed_by.present?
+  end
+
+  def giveaway_cancelled?
+    cancelled? && claimed_by.blank?
+  end
 
   def vote_summary
     votes.group(:choice).count
