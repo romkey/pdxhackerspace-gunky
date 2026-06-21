@@ -403,6 +403,38 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to items_path
   end
 
+  test "destroy enqueues slack delete when item was posted" do
+    ENV["SLACK_BOT_TOKEN"] = "xoxb-test"
+    @item.update!(slack_message_ts: "111.222", slack_channel_id: "C123")
+
+    assert_enqueued_with(
+      job: DeleteFromSlackJob,
+      args: [ "C123", "111.222" ]
+    ) do
+      delete item_path(@item)
+    end
+  ensure
+    ENV["SLACK_BOT_TOKEN"] = nil
+  end
+
+  test "destroy does not enqueue slack delete when item was not posted" do
+    ENV["SLACK_BOT_TOKEN"] = "xoxb-test"
+
+    assert_no_enqueued_jobs(only: DeleteFromSlackJob) do
+      delete item_path(@item)
+    end
+  ensure
+    ENV["SLACK_BOT_TOKEN"] = nil
+  end
+
+  test "destroy does not enqueue slack delete when token is blank" do
+    @item.update!(slack_message_ts: "111.222", slack_channel_id: "C123")
+
+    assert_no_enqueued_jobs(only: DeleteFromSlackJob) do
+      delete item_path(@item)
+    end
+  end
+
   # Resolve
 
   test "resolve sets disposition to mine with claimed_by" do

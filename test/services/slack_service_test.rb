@@ -57,6 +57,28 @@ class SlackServiceTest < ActiveSupport::TestCase
     assert_includes types, "section"
   end
 
+  test "delete_item_message calls chat_delete for posted item" do
+    service = SlackService.new
+    client = FakeSlackClient.new
+    service.instance_variable_set(:@client, client)
+
+    @item.update!(slack_message_ts: "1234567890.123456", slack_channel_id: "C0123456789")
+    service.delete_item_message(@item.reload)
+
+    assert_equal 1, client.delete_calls.size
+    assert_equal "C0123456789", client.delete_calls.first[:channel]
+    assert_equal "1234567890.123456", client.delete_calls.first[:ts]
+  end
+
+  test "delete_item_message does nothing for unposted item" do
+    service = SlackService.new
+    client = FakeSlackClient.new
+    service.instance_variable_set(:@client, client)
+
+    service.delete_item_message(@item)
+    assert_equal 0, client.delete_calls.size
+  end
+
   test "build_item_blocks includes action buttons for pending item" do
     service = SlackService.new
     blocks = service.send(:build_item_blocks, @item)

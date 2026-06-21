@@ -68,20 +68,25 @@ class SlackService
     post_expired_item_message(item)
   end
 
+  def delete_item_message(item)
+    return unless item.posted_to_slack?
+
+    delete_message(channel: item.slack_channel_id, ts: item.slack_message_ts)
+  end
+
+  def delete_message(channel:, ts:)
+    return if channel.blank? || ts.blank?
+
+    payload = { channel: channel, ts: ts }
+    log_payload("chat_delete", payload)
+    @client.chat_delete(**payload)
+  end
+
   private
 
   # Slack header plain_text must be <= 150 characters.
   def expired_item_header_plain_text(item)
     "\"#{item.display_description}\" has completed".truncate(150, omission: "…")
-  end
-
-  def delete_item_message(item)
-    payload = {
-      channel: item.slack_channel_id,
-      ts: item.slack_message_ts
-    }
-    log_payload("chat_delete", payload)
-    @client.chat_delete(**payload)
   end
 
   def post_expired_item_message(item)

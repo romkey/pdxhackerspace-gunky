@@ -85,6 +85,7 @@ class ItemsController < ApplicationController
   end
 
   def destroy
+    enqueue_slack_delete(@item)
     @item.destroy
     redirect_to items_path, notice: "Item was successfully deleted."
   end
@@ -209,6 +210,13 @@ class ItemsController < ApplicationController
 
   def winner_vote_for(item)
     item.votes.find_by(slack_user_id: params[:slack_user_id].to_s, choice: :mine)
+  end
+
+  def enqueue_slack_delete(item)
+    return unless item.posted_to_slack?
+    return unless ENV["SLACK_BOT_TOKEN"].present?
+
+    DeleteFromSlackJob.perform_later(item.slack_channel_id, item.slack_message_ts)
   end
 
   def upload_preview_photo(photo)
