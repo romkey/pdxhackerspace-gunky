@@ -65,6 +65,16 @@ module ItemsHelper
     VOTE_LABELS[choice.to_s] || choice.to_s.capitalize
   end
 
+  def pending_vote_counts_line(item)
+    return unless item.pending?
+
+    summary = item.vote_summary
+    want = summary["mine"] || 0
+    keep = summary["foster"] || 0
+    trash = summary["kill"] || 0
+    "Want: #{want} · Keep: #{keep} · Trash: #{trash}"
+  end
+
   # Lines for thermal receipt (plain text; ERB-escaped in template).
   def receipt_disposition_lines(item)
     lines = []

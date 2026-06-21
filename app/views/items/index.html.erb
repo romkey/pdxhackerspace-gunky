@@ -57,12 +57,15 @@
               <small><%= item.location.presence || "No location" %></small>
             </p>
             <span class="badge <%= disposition_badge_class(item.disposition) %>"><%= item_disposition_label(item) %></span>
+            <% if item.pending? %>
+              <span class="text-muted ms-1"><small><%= pending_vote_counts_line(item) %></small></span>
+            <% end %>
             <% if item.expired? && item.pending? %>
               <span class="badge bg-warning text-dark">Expired</span>
             <% end %>
             <% if item.owned? %>
               <p class="mt-2 mb-0 text-muted">
-                <small>Kept by <%= item.claimed_by %></small>
+                <small>Owned by <%= item.claimed_by %></small>
               </p>
             <% end %>
 

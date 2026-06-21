@@ -58,6 +58,14 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     assert_select "form[action='#{cancel_giveaway_item_path(@item)}']"
     assert_select "form[action='#{claim_ownership_item_path(@item)}'] input[name='claimed_by']"
     assert_select "form[action='#{claim_ownership_item_path(@item)}'] input[type='submit'][value='I Own This']"
+    assert_select "small", text: "Want: 1 · Keep: 1 · Trash: 0"
+  end
+
+  test "index shows owned by for owned items" do
+    get items_path(disposition: "owned")
+
+    assert_response :success
+    assert_select "small", text: "Owned by #{items(:owned_item).claimed_by}"
   end
 
   test "index hides pending controls for non-pending items" do
