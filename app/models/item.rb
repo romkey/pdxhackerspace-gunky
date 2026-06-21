@@ -55,6 +55,10 @@ class Item < ApplicationRecord
     cancellation_reason.to_s.strip.presence
   end
 
+  def disown!
+    update!(disposition: :pending, claimed_by: nil, cancellation_reason: nil)
+  end
+
   def vote_summary
     votes.group(:choice).count
   end

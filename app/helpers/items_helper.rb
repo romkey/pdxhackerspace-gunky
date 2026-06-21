@@ -1,4 +1,15 @@
 module ItemsHelper
+  RESOLVE_DISPOSITION_OPTIONS = [
+    [ "I want this", "mine" ],
+    [ "Keep it for the space", "foster" ],
+    [ "Trash it", "kill" ],
+    [ "I own this", "owned" ]
+  ].freeze
+
+  def resolve_disposition_options
+    RESOLVE_DISPOSITION_OPTIONS
+  end
+
   INDEX_FILTER_TABS = [
     [ "Pending", "pending" ],
     [ "Want", "mine" ],

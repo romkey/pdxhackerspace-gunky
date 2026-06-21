@@ -67,6 +67,13 @@
               <p class="mt-2 mb-0 text-muted">
                 <small>Owned by <%= item.claimed_by %></small>
               </p>
+              <div class="mt-2">
+                <%= button_to "Disown",
+                      disown_item_path(item),
+                      method: :post,
+                      class: "btn btn-outline-warning btn-sm",
+                      form: { data: { turbo_confirm: "Reopen this giveaway and remove the owner claim?" } } %>
+              </div>
             <% end %>
 
             <% if item.giveaway_cancelled? && item.normalized_cancellation_reason.present? %>

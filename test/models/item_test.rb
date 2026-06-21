@@ -107,6 +107,17 @@ class ItemTest < ActiveSupport::TestCase
     assert_nil item.normalized_cancellation_reason
   end
 
+  test "disown! returns owned item to pending and clears owner fields" do
+    item = items(:owned_item)
+
+    item.disown!
+    item.reload
+
+    assert item.pending?
+    assert_nil item.claimed_by
+    assert_nil item.cancellation_reason
+  end
+
   test "gunky_stats counts completed dispositions" do
     stats = Item.gunky_stats
 

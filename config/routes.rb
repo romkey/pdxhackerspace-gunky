@@ -25,6 +25,8 @@ Rails.application.routes.draw do
       post :winner_picked_up
       post :cancel_giveaway
       post :claim_ownership
+      post :disown
+      post :cancel_and_relist
     end
   end
 

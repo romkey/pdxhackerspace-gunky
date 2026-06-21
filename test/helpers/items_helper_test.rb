@@ -23,4 +23,9 @@ class ItemsHelperTest < ActionView::TestCase
   test "pending_vote_counts_line returns nil for non-pending items" do
     assert_nil pending_vote_counts_line(items(:claimed_item))
   end
+
+  test "resolve_disposition_options includes I own this" do
+    labels = resolve_disposition_options.map(&:first)
+    assert_includes labels, "I own this"
+  end
 end

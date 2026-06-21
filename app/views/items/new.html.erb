@@ -2,6 +2,10 @@
 
 <div class="row">
   <div class="col-lg-8">
-    <%= render "form", item: @item, locations: @locations %>
+    <%= render "form",
+          item: @item,
+          locations: @locations,
+          relist_photo_signed_id: @relist_photo_signed_id,
+          relist_photo_blob: @relist_photo_blob %>
   </div>
 </div>
