@@ -23,7 +23,8 @@
     <%= f.file_field :photo, class: "form-control", accept: "image/*", capture: "environment", data: { photo_ai_target: "photoInput", action: "change->photo-ai#selected" } %>
     <div class="form-text">Use your camera or choose an existing image.</div>
     <div class="form-text" data-photo-ai-target="status"></div>
-    <div class="mt-2 <%= "d-none" unless item.photo.attached? %>" data-photo-ai-target="previewWrapper">
+    <% show_relist_preview = local_assigns[:relist_photo_signed_id].present? && local_assigns[:relist_photo_blob].present? %>
+    <div class="mt-2 <%= "d-none" unless item.photo.attached? || show_relist_preview %>" data-photo-ai-target="previewWrapper">
       <img
         data-photo-ai-target="preview"
         class="rounded"
@@ -31,10 +32,15 @@
         alt="Photo preview"
         <% if item.photo.attached? %>
           src="<%= url_for(item.photo.variant(resize_to_fill: [200, 150])) %>"
+        <% elsif show_relist_preview %>
+          src="<%= url_for(relist_photo_blob.variant(resize_to_fill: [200, 150])) %>"
         <% end %>
       >
     </div>
-    <% if item.photo.attached? %>
+    <% if show_relist_preview %>
+      <%= hidden_field_tag "item[photo]", relist_photo_signed_id, data: { photo_ai_target: "hiddenPhoto" } %>
+      <div class="form-text mt-1">Photo copied from the cancelled listing</div>
+    <% elsif item.photo.attached? %>
       <div class="form-text mt-1">Current photo</div>
     <% end %>
   </div>

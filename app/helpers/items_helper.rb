@@ -1,4 +1,31 @@
 module ItemsHelper
+  RESOLVE_DISPOSITION_OPTIONS = [
+    [ "I want this", "mine" ],
+    [ "Keep it for the space", "foster" ],
+    [ "Trash it", "kill" ],
+    [ "I own this", "owned" ]
+  ].freeze
+
+  def resolve_disposition_options
+    RESOLVE_DISPOSITION_OPTIONS
+  end
+
+  INDEX_FILTER_TABS = [
+    [ "Pending", "pending" ],
+    [ "Want", "mine" ],
+    [ "Keep", "foster" ],
+    [ "Trash", "kill" ],
+    [ "Owned", "owned" ]
+  ].freeze
+
+  DISPOSITION_LABELS = {
+    "pending" => "Pending",
+    "mine" => "Want",
+    "foster" => "Keep",
+    "kill" => "Trash",
+    "cancelled" => "Cancelled"
+  }.freeze
+
   DISPOSITION_BADGES = {
     "pending" => "bg-secondary",
     "mine"    => "bg-primary",
@@ -23,12 +50,40 @@ module ItemsHelper
     DISPOSITION_BADGES[disposition] || "bg-secondary"
   end
 
+  def disposition_label(disposition)
+    DISPOSITION_LABELS[disposition.to_s] || disposition.to_s.capitalize
+  end
+
+  def item_disposition_label(item)
+    return "Owned" if item.owned?
+
+    disposition_label(item.disposition)
+  end
+
+  def index_filter_tabs
+    INDEX_FILTER_TABS
+  end
+
+  def index_tab_active?(filter)
+    params[:disposition].to_s == filter.to_s
+  end
+
   def vote_badge_class(choice)
     VOTE_BADGES[choice] || "bg-secondary"
   end
 
   def vote_choice_label(choice)
     VOTE_LABELS[choice.to_s] || choice.to_s.capitalize
+  end
+
+  def pending_vote_counts_line(item)
+    return unless item.pending?
+
+    summary = item.vote_summary
+    want = summary["mine"] || 0
+    keep = summary["foster"] || 0
+    trash = summary["kill"] || 0
+    "Want: #{want} · Keep: #{keep} · Trash: #{trash}"
   end
 
   # Lines for thermal receipt (plain text; ERB-escaped in template).
@@ -50,7 +105,11 @@ module ItemsHelper
       names = item.kill_voter_usernames
       lines << "Kill votes: #{names.join(', ')}" if names.any?
     when "cancelled"
-      lines << "Kept by owner: #{item.claimed_by}" if item.claimed_by.present?
+      if item.claimed_by.present?
+        lines << "Kept by owner: #{item.claimed_by}"
+      elsif item.normalized_cancellation_reason.present?
+        lines << "Cancellation reason: #{item.normalized_cancellation_reason}"
+      end
       lines << "No further giveaway actions."
     when "pending"
       if item.votes.any?

@@ -90,6 +90,31 @@ class SlackServiceTest < ActiveSupport::TestCase
     assert_equal [ "I want this", "Keep it for the space", "Trash it", "I own this" ], action_texts
   end
 
+  test "build_item_blocks includes internal item link when APP_INTERNAL_URL is set" do
+    ENV["APP_INTERNAL_URL"] = "http://gunky.ctrlh"
+    service = SlackService.new
+    blocks = service.send(:build_item_blocks, @item)
+    link_block = blocks.find do |b|
+      b[:type] == "context" && b[:elements].any? { |entry| entry[:text].include?("View on Gunky") }
+    end
+
+    assert_not_nil link_block
+    text = link_block[:elements].first[:text]
+    assert_includes text, "<http://gunky.ctrlh/items/#{@item.id}|View on Gunky>"
+    assert_includes text, "(only usable from CTRLH's network)"
+  ensure
+    ENV.delete("APP_INTERNAL_URL")
+  end
+
+  test "build_item_blocks omits internal item link when APP_INTERNAL_URL is blank" do
+    ENV.delete("APP_INTERNAL_URL")
+    service = SlackService.new
+    blocks = service.send(:build_item_blocks, @item)
+
+    link_block = blocks.find { |b| b[:type] == "context" && b[:elements].any? { |entry| entry[:text].include?("View on Gunky") } }
+    assert_nil link_block
+  end
+
   test "cancel_item_message updates posted cancelled item with no actions" do
     service = SlackService.new
     client = FakeSlackClient.new
@@ -116,6 +141,48 @@ class SlackServiceTest < ActiveSupport::TestCase
     assert_not_nil context_block
     assert_includes context_block[:elements].first[:text], "Unavailable - owned by"
     assert_includes context_block[:elements].first[:text], "Alice Display"
+  end
+
+  test "cancel_item_message shows giveaway cancelled message without owner" do
+    service = SlackService.new
+    client = FakeSlackClient.new
+    service.instance_variable_set(:@client, client)
+
+    @item.update!(
+      disposition: :cancelled,
+      claimed_by: nil,
+      slack_message_ts: "1234567890.123456",
+      slack_channel_id: "C0123456789"
+    )
+
+    service.cancel_item_message(@item.reload)
+
+    context_block = client.update_calls.first[:blocks].find do |b|
+      b[:type] == "context" && b[:elements].any? { |entry| entry[:text].include?("Giveaway cancelled") }
+    end
+    assert_not_nil context_block
+    assert_not_includes context_block[:elements].first[:text], "owned by"
+  end
+
+  test "cancel_item_message includes cancellation reason when present" do
+    service = SlackService.new
+    client = FakeSlackClient.new
+    service.instance_variable_set(:@client, client)
+
+    @item.update!(
+      disposition: :cancelled,
+      claimed_by: nil,
+      cancellation_reason: "Posted by mistake",
+      slack_message_ts: "1234567890.123456",
+      slack_channel_id: "C0123456789"
+    )
+
+    service.cancel_item_message(@item.reload)
+
+    context_block = client.update_calls.first[:blocks].find do |b|
+      b[:type] == "context" && b[:elements].any? { |entry| entry[:text].include?("Giveaway cancelled") }
+    end
+    assert_includes context_block[:elements].first[:text], "Reason: Posted by mistake"
   end
 
   test "build_item_blocks omits action buttons for resolved item" do

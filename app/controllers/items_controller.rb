@@ -1,11 +1,15 @@
 class ItemsController < ApplicationController
   include Pagy::Method
 
-  before_action :set_item, only: [ :show, :edit, :update, :destroy, :resolve, :describe, :dispose, :winner_forfeit, :winner_picked_up, :print, :print_browser ]
+  before_action :set_item, only: [
+    :show, :edit, :update, :destroy, :resolve, :describe, :dispose,
+    :winner_forfeit, :winner_picked_up, :print, :print_browser,
+    :cancel_giveaway, :claim_ownership, :disown, :cancel_and_relist
+  ]
 
   def index
-    items = Item.order(created_at: :desc)
-    items = items.where(disposition: params[:disposition]) if params[:disposition].present?
+    items = filtered_items.order(created_at: :desc)
+    @stats = Item.gunky_stats
     @pagy, @items = pagy(:offset, items)
   end
 
@@ -14,6 +18,7 @@ class ItemsController < ApplicationController
 
   def new
     @item = Item.new
+    prefill_item_from_relist!(params[:relist_from])
     @locations = Location.sorted
   end
 
@@ -161,15 +166,32 @@ class ItemsController < ApplicationController
   end
 
   def resolve
-    disposition = params[:disposition]
-    claimed_by = params[:claimed_by]
+    disposition = params[:disposition].to_s
+    claimed_by = params[:claimed_by].to_s.strip
+
+    if disposition == "owned"
+      unless @item.pending?
+        redirect_to item_path(@item), alert: "Only pending items can be marked as owned."
+        return
+      end
+
+      if claimed_by.blank?
+        redirect_to item_path(@item), alert: "Owner name is required for I own this."
+        return
+      end
+
+      @item.update!(disposition: :cancelled, claimed_by: claimed_by, cancellation_reason: nil)
+      SlackService.new.cancel_item_message(@item)
+      redirect_to item_path(@item), notice: "Marked as owned by #{claimed_by}."
+      return
+    end
 
     unless Item.dispositions.key?(disposition)
       redirect_to item_path(@item), alert: "Invalid disposition."
       return
     end
 
-    @item.update!(disposition: disposition, claimed_by: claimed_by)
+    @item.update!(disposition: disposition, claimed_by: claimed_by.presence)
     redirect_to item_path(@item), notice: "Item resolved as #{disposition}."
   end
 
@@ -198,7 +220,95 @@ class ItemsController < ApplicationController
     redirect_back fallback_location: items_path, notice: "Marked #{winner.slack_username} as picked up."
   end
 
+  def cancel_giveaway
+    unless @item.pending?
+      redirect_back fallback_location: items_path, alert: "Only pending items can be cancelled."
+      return
+    end
+
+    cancel_item_giveaway!(cancellation_reason: params[:cancellation_reason])
+    redirect_back fallback_location: items_path, notice: "Giveaway cancelled."
+  end
+
+  def claim_ownership
+    unless @item.pending?
+      redirect_back fallback_location: items_path, alert: "Only pending items can be marked as owned."
+      return
+    end
+
+    claimed_by = params[:claimed_by].to_s.strip
+    if claimed_by.blank?
+      redirect_back fallback_location: items_path, alert: "Owner name is required."
+      return
+    end
+
+    @item.update!(disposition: :cancelled, claimed_by: claimed_by, cancellation_reason: nil)
+    SlackService.new.cancel_item_message(@item)
+    redirect_back fallback_location: items_path, notice: "Marked as owned by #{claimed_by}."
+  end
+
+  def disown
+    unless @item.owned?
+      redirect_back fallback_location: items_path, alert: "Only owned items can be disowned."
+      return
+    end
+
+    owner = @item.claimed_by
+    @item.disown!
+    SlackService.new.update_item_message(@item)
+    redirect_back fallback_location: items_path, notice: "Disowned #{owner}; giveaway reopened."
+  end
+
+  def cancel_and_relist
+    unless @item.pending? || @item.owned?
+      redirect_back fallback_location: item_path(@item),
+                    alert: "Only pending or owned items can be cancelled and relisted."
+      return
+    end
+
+    source_id = @item.id
+    cancel_item_giveaway!(cancellation_reason: params[:cancellation_reason])
+    redirect_to new_item_path(relist_from: source_id), notice: "Item cancelled. Review and submit the relisted item."
+  end
+
   private
+
+  def prefill_item_from_relist!(source_id)
+    return if source_id.blank?
+
+    source = Item.find_by(id: source_id)
+    return unless source
+
+    @item.assign_attributes(
+      description: source.description,
+      location: source.location,
+      expiration_date: 7.days.from_now.to_date
+    )
+    return unless source.photo.attached?
+
+    @relist_photo_signed_id = source.photo.blob.signed_id
+    @relist_photo_blob = source.photo.blob
+  end
+
+  def cancel_item_giveaway!(cancellation_reason:)
+    reason = cancellation_reason.to_s.strip.presence
+    @item.update!(disposition: :cancelled, claimed_by: nil, cancellation_reason: reason)
+    SlackService.new.cancel_item_message(@item)
+  end
+
+  def filtered_items
+    disposition = params[:disposition].to_s
+
+    if disposition == "owned"
+      Item.owned
+    elsif disposition == "cancelled"
+      Item.giveaway_cancelled
+    elsif disposition.present? && Item.dispositions.key?(disposition)
+      Item.where(disposition: disposition)
+    else
+      Item.all
+    end
+  end
 
   def set_item
     @item = Item.find(params[:id])
