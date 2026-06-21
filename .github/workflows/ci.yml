@@ -32,6 +32,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Install packages
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libvips42
+
       - name: Checkout code
         uses: actions/checkout@v6
 
@@ -90,7 +93,7 @@ jobs:
 
     steps:
       - name: Install packages
-        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libpq-dev node-gyp
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libpq-dev node-gyp libvips42
 
       - name: Checkout code
         uses: actions/checkout@v6
@@ -128,7 +131,7 @@ jobs:
 
     steps:
       - name: Install packages
-        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libpq-dev node-gyp pkg-config
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libpq-dev node-gyp libvips42 pkg-config
 
       - name: Checkout code
         uses: actions/checkout@v6
@@ -184,7 +187,7 @@ jobs:
 
     steps:
       - name: Install packages
-        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libpq-dev node-gyp
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libpq-dev node-gyp libvips42
 
       - name: Checkout code
         uses: actions/checkout@v6

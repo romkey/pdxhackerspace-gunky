@@ -84,6 +84,17 @@ class SlackService
 
   private
 
+  def cancelled_item_message(item)
+    if item.claimed_by.present?
+      return ":no_entry_sign: Unavailable - owned by #{item.claimed_by}. Giveaway halted."
+    end
+
+    message = ":no_entry_sign: Giveaway cancelled."
+    reason = item.normalized_cancellation_reason
+    message += " Reason: #{reason}" if reason.present?
+    message
+  end
+
   # Slack header plain_text must be <= 150 characters.
   def expired_item_header_plain_text(item)
     "\"#{item.display_description}\" has completed".truncate(150, omission: "…")
@@ -196,9 +207,10 @@ class SlackService
 
     internal_url = item_internal_url(item)
     if internal_url.present?
+      link_text = item_internal_link_markdown(item)
       blocks << {
         type: "context",
-        elements: [ { type: "mrkdwn", text: "Item link: #{internal_url}" } ]
+        elements: [ { type: "mrkdwn", text: link_text } ]
       }
     end
 
@@ -214,6 +226,13 @@ class SlackService
     return nil if base.blank?
 
     "#{base.chomp('/')}/items/#{item.id}"
+  end
+
+  def item_internal_link_markdown(item)
+    url = item_internal_url(item)
+    return nil if url.blank?
+
+    "<#{url}|View on Gunky> (only usable from CTRLH's network)"
   end
 
   def expired_item_link_suffix(item)
@@ -306,10 +325,17 @@ class SlackService
     end
 
     if item.cancelled?
-      owner = item.claimed_by.presence || "Owner"
       blocks << {
         type: "context",
-        elements: [ { type: "mrkdwn", text: ":no_entry_sign: Unavailable - owned by #{owner}. Giveaway halted." } ]
+        elements: [ { type: "mrkdwn", text: cancelled_item_message(item) } ]
+      }
+    end
+
+    link_text = item_internal_link_markdown(item)
+    if link_text.present?
+      blocks << {
+        type: "context",
+        elements: [ { type: "mrkdwn", text: link_text } ]
       }
     end
 

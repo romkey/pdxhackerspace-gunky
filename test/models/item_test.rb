@@ -81,6 +81,54 @@ class ItemTest < ActiveSupport::TestCase
     assert_not_includes Item.killed_disposed, items(:killed_item)
   end
 
+  test "owned scope includes cancelled items with claimed_by" do
+    assert_includes Item.owned, items(:owned_item)
+    assert_not_includes Item.owned, items(:cancelled_item)
+  end
+
+  test "giveaway_cancelled scope includes cancelled items without claimed_by" do
+    assert_includes Item.giveaway_cancelled, items(:cancelled_item)
+    assert_not_includes Item.giveaway_cancelled, items(:owned_item)
+  end
+
+  test "owned? and giveaway_cancelled? reflect claimed_by" do
+    assert items(:owned_item).owned?
+    assert_not items(:owned_item).giveaway_cancelled?
+
+    assert items(:cancelled_item).giveaway_cancelled?
+    assert_not items(:cancelled_item).owned?
+  end
+
+  test "normalized_cancellation_reason strips blank values" do
+    item = items(:cancelled_item)
+    assert_equal "Already have two", item.normalized_cancellation_reason
+
+    item.update!(cancellation_reason: "   ")
+    assert_nil item.normalized_cancellation_reason
+  end
+
+  test "disown! returns owned item to pending and clears owner fields" do
+    item = items(:owned_item)
+
+    item.disown!
+    item.reload
+
+    assert item.pending?
+    assert_nil item.claimed_by
+    assert_nil item.cancellation_reason
+  end
+
+  test "gunky_stats counts completed dispositions" do
+    stats = Item.gunky_stats
+
+    assert_equal Item.gunky_completed.count, stats[:total]
+    assert_equal Item.mine.count, stats[:new_homes]
+    assert_equal Item.foster.count, stats[:kept_for_space]
+    assert_equal Item.kill.count, stats[:trashed]
+    assert_equal Item.owned.count, stats[:owners_found]
+    assert_equal Item.giveaway_cancelled.count, stats[:cancelled]
+  end
+
   test "dispose! records disposal time" do
     item = items(:killed_item)
 

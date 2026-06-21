@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_29_220300) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_21_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -54,10 +54,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_29_220300) do
 
   create_table "items", force: :cascade do |t|
     t.text "ai_description"
+    t.text "cancellation_reason"
     t.string "claimed_by"
     t.datetime "created_at", null: false
-    t.datetime "disposed_at"
     t.text "description", null: false
+    t.datetime "disposed_at"
     t.integer "disposition", default: 0, null: false
     t.date "expiration_date"
     t.string "location"
@@ -69,13 +70,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_29_220300) do
     t.index ["expiration_date"], name: "index_items_on_expiration_date"
   end
 
-  create_table "print_settings", force: :cascade do |t|
-    t.string "cups_queue"
-    t.datetime "created_at", null: false
-    t.integer "paper_width_mm", default: 80, null: false
-    t.datetime "updated_at", null: false
-  end
-
   create_table "locations", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "name", null: false
@@ -83,11 +77,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_29_220300) do
     t.index ["name"], name: "index_locations_on_name", unique: true
   end
 
+  create_table "print_settings", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "cups_queue"
+    t.integer "paper_width_mm", default: 80, null: false
+    t.datetime "updated_at", null: false
+  end
+
   create_table "slack_member_caches", force: :cascade do |t|
+    t.datetime "created_at", null: false
     t.string "display_name"
     t.string "real_name"
     t.string "slack_user_id", null: false
-    t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["slack_user_id"], name: "index_slack_member_caches_on_slack_user_id", unique: true
   end

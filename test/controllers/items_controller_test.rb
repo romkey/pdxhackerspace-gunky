@@ -21,6 +21,189 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     get items_path
     assert_response :success
     assert_select "a.nav-link", text: "All"
+    assert_select "a.nav-link", text: "Want"
+    assert_select "a.nav-link", text: "Keep"
+    assert_select "a.nav-link", text: "Trash"
+    assert_select "a.nav-link", text: "Owned"
+    assert_select "a.nav-link", text: "Cancelled", count: 0
+  end
+
+  test "index shows gunky stats" do
+    stats = Item.gunky_stats
+
+    get items_path
+
+    assert_response :success
+    assert_select ".alert", text: /#{stats[:total]}.*total gunky'd/m
+    assert_select ".alert", text: /#{stats[:new_homes]}.*new homes/m
+    assert_select ".alert", text: /#{stats[:kept_for_space]}.*kept for space/m
+    assert_select ".alert", text: /#{stats[:trashed]}.*trashed/m
+    assert_select ".alert", text: /#{stats[:owners_found]}.*owners found/m
+    assert_select ".alert", text: /#{stats[:cancelled]}.*cancelled/m
+  end
+
+  test "index filters owned items" do
+    get items_path(disposition: "owned")
+
+    assert_response :success
+    assert_select "a.nav-link.active", text: "Owned"
+    assert_select "h5.card-title", text: /#{items(:owned_item).display_description.truncate(60)}/
+    assert_select "h5.card-title", text: /#{items(:cancelled_item).display_description.truncate(60)}/, count: 0
+  end
+
+  test "index shows cancel and claim ownership controls for pending items" do
+    get items_path(disposition: "pending")
+
+    assert_response :success
+    assert_select "form[action='#{cancel_giveaway_item_path(@item)}']"
+    assert_select "form[action='#{cancel_giveaway_item_path(@item)}'] input[name='cancellation_reason']"
+    assert_select "form[action='#{claim_ownership_item_path(@item)}'] input[name='claimed_by']"
+    assert_select "form[action='#{claim_ownership_item_path(@item)}'] input[type='submit'][value='I Own This']"
+    assert_select "small", text: "Want: 1 · Keep: 1 · Trash: 0"
+  end
+
+  test "index shows owned by for owned items" do
+    get items_path(disposition: "owned")
+
+    assert_response :success
+    assert_select "small", text: "Owned by #{items(:owned_item).claimed_by}"
+    assert_select "form[action='#{disown_item_path(items(:owned_item))}']"
+  end
+
+  test "index hides pending controls for non-pending items" do
+    get items_path(disposition: "mine")
+
+    assert_response :success
+    assert_select "form[action*='cancel_giveaway']", count: 0
+    assert_select "form[action*='claim_ownership']", count: 0
+  end
+
+  test "cancel_giveaway marks pending item as cancelled without owner" do
+    cancel_calls = 0
+    original_cancel = SlackService.instance_method(:cancel_item_message)
+    SlackService.define_method(:cancel_item_message) do |_item|
+      cancel_calls += 1
+    end
+
+    post cancel_giveaway_item_path(@item)
+
+    assert_redirected_to items_path
+    @item.reload
+    assert @item.giveaway_cancelled?
+    assert_nil @item.claimed_by
+    assert_nil @item.normalized_cancellation_reason
+    assert_equal 1, cancel_calls
+  ensure
+    SlackService.define_method(:cancel_item_message, original_cancel)
+  end
+
+  test "cancel_giveaway stores optional cancellation reason" do
+    post cancel_giveaway_item_path(@item), params: { cancellation_reason: "  Duplicate listing  " }
+
+    assert_redirected_to items_path
+    assert_equal "Duplicate listing", @item.reload.normalized_cancellation_reason
+  end
+
+  test "cancel_giveaway updates Slack when item was posted" do
+    cancel_calls = 0
+    original_cancel = SlackService.instance_method(:cancel_item_message)
+    SlackService.define_method(:cancel_item_message) do |_item|
+      cancel_calls += 1
+    end
+    @item.update!(slack_message_ts: "111.222", slack_channel_id: "C123")
+
+    post cancel_giveaway_item_path(@item)
+
+    assert_redirected_to items_path
+    assert_equal 1, cancel_calls
+  ensure
+    SlackService.define_method(:cancel_item_message, original_cancel)
+  end
+
+  test "cancel_giveaway rejects non-pending item" do
+    post cancel_giveaway_item_path(items(:claimed_item))
+
+    assert_redirected_to items_path
+    assert_equal "Only pending items can be cancelled.", flash[:alert]
+    assert items(:claimed_item).reload.mine?
+  end
+
+  test "claim_ownership marks pending item as owned" do
+    cancel_calls = 0
+    original_cancel = SlackService.instance_method(:cancel_item_message)
+    SlackService.define_method(:cancel_item_message) do |_item|
+      cancel_calls += 1
+    end
+
+    post claim_ownership_item_path(@item), params: { claimed_by: "  sam  " }
+
+    assert_redirected_to items_path
+    @item.reload
+    assert @item.owned?
+    assert_equal "sam", @item.claimed_by
+    assert_equal 1, cancel_calls
+  ensure
+    SlackService.define_method(:cancel_item_message, original_cancel)
+  end
+
+  test "claim_ownership requires owner name" do
+    post claim_ownership_item_path(@item), params: { claimed_by: "   " }
+
+    assert_redirected_to items_path
+    assert_equal "Owner name is required.", flash[:alert]
+    assert @item.reload.pending?
+  end
+
+  test "claim_ownership rejects non-pending item" do
+    post claim_ownership_item_path(items(:claimed_item)), params: { claimed_by: "sam" }
+
+    assert_redirected_to items_path
+    assert_equal "Only pending items can be marked as owned.", flash[:alert]
+    assert items(:claimed_item).reload.mine?
+  end
+
+  test "disown returns owned item to pending" do
+    item = items(:owned_item)
+
+    post disown_item_path(item)
+
+    assert_redirected_to items_path
+    assert item.reload.pending?
+    assert_nil item.claimed_by
+    assert_match(/reopened/i, flash[:notice].to_s)
+  end
+
+  test "disown updates Slack when item was posted" do
+    item = items(:owned_item)
+    item.update!(slack_message_ts: "111.222", slack_channel_id: "C123")
+
+    update_calls = 0
+    original = SlackService.instance_method(:update_item_message)
+    SlackService.define_method(:update_item_message) do |_updated_item|
+      update_calls += 1
+    end
+
+    post disown_item_path(item)
+
+    assert_redirected_to items_path
+    assert_equal 1, update_calls
+  ensure
+    SlackService.define_method(:update_item_message, original)
+  end
+
+  test "disown rejects non-owned item" do
+    post disown_item_path(@item)
+
+    assert_redirected_to items_path
+    assert_equal "Only owned items can be disowned.", flash[:alert]
+    assert @item.reload.pending?
+  end
+
+  test "show offers disown for owned item" do
+    get item_path(items(:owned_item))
+
+    assert_response :success
+    assert_select "form[action='#{disown_item_path(items(:owned_item))}']"
   end
 
   test "index shows winner actions for mine item" do
@@ -66,7 +249,7 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
-  test "show labels claimed_by as kept by for cancelled item" do
+  test "show labels owned by for owned item" do
     cancelled_item = Item.create!(
       description: "Owner kept it",
       disposition: :cancelled,
@@ -77,13 +260,35 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     get item_path(cancelled_item)
 
     assert_response :success
-    assert_select "th", text: "Kept by"
-    assert_select "td", text: "alice"
+    assert_select "th", text: "Owned by"
+    assert_match(/alice/, response.body)
+  end
+
+  test "show displays cancellation reason for cancelled giveaway" do
+    get item_path(items(:cancelled_item))
+
+    assert_response :success
+    assert_select "th", text: "Cancellation reason"
+    assert_select "td", text: items(:cancelled_item).cancellation_reason
   end
 
   test "show displays resolve form for pending item" do
     get item_path(@item)
     assert_select "select[name='disposition']"
+    assert_select "select[name='disposition'] option", text: "I own this"
+  end
+
+  test "show offers cancel and cancel and relist for pending item" do
+    get item_path(@item)
+
+    assert_select "form[action='#{cancel_giveaway_item_path(@item)}']"
+    assert_select "form[action='#{cancel_and_relist_item_path(@item)}']"
+  end
+
+  test "show offers cancel and relist for owned item" do
+    get item_path(items(:owned_item))
+
+    assert_select "form[action='#{cancel_and_relist_item_path(items(:owned_item))}']"
   end
 
   test "show hides resolve form for non-pending item" do
@@ -460,6 +665,80 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to item_path(@item)
     assert_equal "Invalid disposition.", flash[:alert]
     assert @item.reload.pending?
+  end
+
+  test "resolve marks pending item as owned" do
+    cancel_calls = 0
+    original_cancel = SlackService.instance_method(:cancel_item_message)
+    SlackService.define_method(:cancel_item_message) do |_item|
+      cancel_calls += 1
+    end
+
+    patch resolve_item_path(@item), params: { disposition: "owned", claimed_by: "pat" }
+
+    assert_redirected_to item_path(@item)
+    assert @item.reload.owned?
+    assert_equal "pat", @item.claimed_by
+    assert_equal 1, cancel_calls
+  ensure
+    SlackService.define_method(:cancel_item_message, original_cancel)
+  end
+
+  test "resolve owned requires owner name" do
+    patch resolve_item_path(@item), params: { disposition: "owned", claimed_by: "  " }
+
+    assert_redirected_to item_path(@item)
+    assert_equal "Owner name is required for I own this.", flash[:alert]
+    assert @item.reload.pending?
+  end
+
+  test "cancel_and_relist cancels pending item and redirects to prefilled new form" do
+    post cancel_and_relist_item_path(@item), params: { cancellation_reason: "Wrong listing" }
+
+    assert_redirected_to new_item_path(relist_from: @item.id)
+    assert @item.reload.giveaway_cancelled?
+    assert_equal "Wrong listing", @item.normalized_cancellation_reason
+
+    follow_redirect!
+    assert_response :success
+    assert_select "textarea[name='item[description]']", text: @item.description
+    assert_select "input[name='item[location]'][value=?]", @item.location
+  end
+
+  test "cancel_and_relist prefills photo from cancelled item" do
+    @item.photo.attach(
+      io: StringIO.new("fake image bytes"),
+      filename: "item.jpg",
+      content_type: "image/jpeg"
+    )
+
+    post cancel_and_relist_item_path(@item)
+
+    follow_redirect!
+    assert_select "input[name='item[photo]'][value=?]", @item.photo.blob.signed_id
+  end
+
+  test "create from relist starts fresh without copying votes or ownership" do
+    post cancel_and_relist_item_path(@item)
+    follow_redirect!
+
+    assert_difference "Item.count", 1 do
+      post items_path, params: { item: { description: @item.description, location: @item.location } }
+    end
+
+    relisted = Item.order(:id).last
+    assert relisted.pending?
+    assert_empty relisted.votes
+    assert_nil relisted.claimed_by
+    assert_nil relisted.normalized_cancellation_reason
+  end
+
+  test "cancel_and_relist rejects non-pending non-owned item" do
+    post cancel_and_relist_item_path(items(:claimed_item))
+
+    assert_redirected_to item_path(items(:claimed_item))
+    assert_equal "Only pending or owned items can be cancelled and relisted.", flash[:alert]
+    assert items(:claimed_item).reload.mine?
   end
 
   test "dispose marks killed item as disposed" do
