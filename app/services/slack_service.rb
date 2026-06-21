@@ -207,9 +207,10 @@ class SlackService
 
     internal_url = item_internal_url(item)
     if internal_url.present?
+      link_text = item_internal_link_markdown(item)
       blocks << {
         type: "context",
-        elements: [ { type: "mrkdwn", text: "Item link: #{internal_url}" } ]
+        elements: [ { type: "mrkdwn", text: link_text } ]
       }
     end
 
@@ -225,6 +226,13 @@ class SlackService
     return nil if base.blank?
 
     "#{base.chomp('/')}/items/#{item.id}"
+  end
+
+  def item_internal_link_markdown(item)
+    url = item_internal_url(item)
+    return nil if url.blank?
+
+    "<#{url}|View on Gunky> (only usable from CTRLH's network)"
   end
 
   def expired_item_link_suffix(item)
@@ -320,6 +328,14 @@ class SlackService
       blocks << {
         type: "context",
         elements: [ { type: "mrkdwn", text: cancelled_item_message(item) } ]
+      }
+    end
+
+    link_text = item_internal_link_markdown(item)
+    if link_text.present?
+      blocks << {
+        type: "context",
+        elements: [ { type: "mrkdwn", text: link_text } ]
       }
     end
 

@@ -90,6 +90,31 @@ class SlackServiceTest < ActiveSupport::TestCase
     assert_equal [ "I want this", "Keep it for the space", "Trash it", "I own this" ], action_texts
   end
 
+  test "build_item_blocks includes internal item link when APP_INTERNAL_URL is set" do
+    ENV["APP_INTERNAL_URL"] = "http://gunky.ctrlh"
+    service = SlackService.new
+    blocks = service.send(:build_item_blocks, @item)
+    link_block = blocks.find do |b|
+      b[:type] == "context" && b[:elements].any? { |entry| entry[:text].include?("View on Gunky") }
+    end
+
+    assert_not_nil link_block
+    text = link_block[:elements].first[:text]
+    assert_includes text, "<http://gunky.ctrlh/items/#{@item.id}|View on Gunky>"
+    assert_includes text, "(only usable from CTRLH's network)"
+  ensure
+    ENV.delete("APP_INTERNAL_URL")
+  end
+
+  test "build_item_blocks omits internal item link when APP_INTERNAL_URL is blank" do
+    ENV.delete("APP_INTERNAL_URL")
+    service = SlackService.new
+    blocks = service.send(:build_item_blocks, @item)
+
+    link_block = blocks.find { |b| b[:type] == "context" && b[:elements].any? { |entry| entry[:text].include?("View on Gunky") } }
+    assert_nil link_block
+  end
+
   test "cancel_item_message updates posted cancelled item with no actions" do
     service = SlackService.new
     client = FakeSlackClient.new
