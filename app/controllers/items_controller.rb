@@ -208,7 +208,9 @@ class ItemsController < ApplicationController
       return
     end
 
-    @item.update!(disposition: :cancelled, claimed_by: nil)
+    reason = params[:cancellation_reason].to_s.strip.presence
+
+    @item.update!(disposition: :cancelled, claimed_by: nil, cancellation_reason: reason)
     SlackService.new.cancel_item_message(@item)
     redirect_back fallback_location: items_path, notice: "Giveaway cancelled."
   end
@@ -225,7 +227,7 @@ class ItemsController < ApplicationController
       return
     end
 
-    @item.update!(disposition: :cancelled, claimed_by: claimed_by)
+    @item.update!(disposition: :cancelled, claimed_by: claimed_by, cancellation_reason: nil)
     SlackService.new.cancel_item_message(@item)
     redirect_back fallback_location: items_path, notice: "Marked as owned by #{claimed_by}."
   end

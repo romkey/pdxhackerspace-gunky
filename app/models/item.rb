@@ -51,6 +51,10 @@ class Item < ApplicationRecord
     cancelled? && claimed_by.blank?
   end
 
+  def normalized_cancellation_reason
+    cancellation_reason.to_s.strip.presence
+  end
+
   def vote_summary
     votes.group(:choice).count
   end

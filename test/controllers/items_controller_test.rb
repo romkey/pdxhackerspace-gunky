@@ -56,6 +56,7 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "form[action='#{cancel_giveaway_item_path(@item)}']"
+    assert_select "form[action='#{cancel_giveaway_item_path(@item)}'] input[name='cancellation_reason']"
     assert_select "form[action='#{claim_ownership_item_path(@item)}'] input[name='claimed_by']"
     assert_select "form[action='#{claim_ownership_item_path(@item)}'] input[type='submit'][value='I Own This']"
     assert_select "small", text: "Want: 1 · Keep: 1 · Trash: 0"
@@ -89,9 +90,17 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     @item.reload
     assert @item.giveaway_cancelled?
     assert_nil @item.claimed_by
+    assert_nil @item.normalized_cancellation_reason
     assert_equal 1, cancel_calls
   ensure
     SlackService.define_method(:cancel_item_message, original_cancel)
+  end
+
+  test "cancel_giveaway stores optional cancellation reason" do
+    post cancel_giveaway_item_path(@item), params: { cancellation_reason: "  Duplicate listing  " }
+
+    assert_redirected_to items_path
+    assert_equal "Duplicate listing", @item.reload.normalized_cancellation_reason
   end
 
   test "cancel_giveaway updates Slack when item was posted" do
@@ -195,7 +204,7 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
-  test "show labels claimed_by as kept by for cancelled item" do
+  test "show labels owned by for owned item" do
     cancelled_item = Item.create!(
       description: "Owner kept it",
       disposition: :cancelled,
@@ -206,8 +215,16 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     get item_path(cancelled_item)
 
     assert_response :success
-    assert_select "th", text: "Kept by"
+    assert_select "th", text: "Owned by"
     assert_select "td", text: "alice"
+  end
+
+  test "show displays cancellation reason for cancelled giveaway" do
+    get item_path(items(:cancelled_item))
+
+    assert_response :success
+    assert_select "th", text: "Cancellation reason"
+    assert_select "td", text: items(:cancelled_item).cancellation_reason
   end
 
   test "show displays resolve form for pending item" do

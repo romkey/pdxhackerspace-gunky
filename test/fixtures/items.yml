@@ -52,3 +52,4 @@ cancelled_item:
   location: Office
   expiration_date: <%= 4.days.ago.to_date %>
   disposition: 4
+  cancellation_reason: Already have two

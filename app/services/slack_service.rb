@@ -84,6 +84,17 @@ class SlackService
 
   private
 
+  def cancelled_item_message(item)
+    if item.claimed_by.present?
+      return ":no_entry_sign: Unavailable - owned by #{item.claimed_by}. Giveaway halted."
+    end
+
+    message = ":no_entry_sign: Giveaway cancelled."
+    reason = item.normalized_cancellation_reason
+    message += " Reason: #{reason}" if reason.present?
+    message
+  end
+
   # Slack header plain_text must be <= 150 characters.
   def expired_item_header_plain_text(item)
     "\"#{item.display_description}\" has completed".truncate(150, omission: "…")
@@ -306,15 +317,9 @@ class SlackService
     end
 
     if item.cancelled?
-      message =
-        if item.claimed_by.present?
-          ":no_entry_sign: Unavailable - owned by #{item.claimed_by}. Giveaway halted."
-        else
-          ":no_entry_sign: Giveaway cancelled."
-        end
       blocks << {
         type: "context",
-        elements: [ { type: "mrkdwn", text: message } ]
+        elements: [ { type: "mrkdwn", text: cancelled_item_message(item) } ]
       }
     end
 

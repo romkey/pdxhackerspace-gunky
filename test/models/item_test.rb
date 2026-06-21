@@ -99,6 +99,14 @@ class ItemTest < ActiveSupport::TestCase
     assert_not items(:cancelled_item).owned?
   end
 
+  test "normalized_cancellation_reason strips blank values" do
+    item = items(:cancelled_item)
+    assert_equal "Already have two", item.normalized_cancellation_reason
+
+    item.update!(cancellation_reason: "   ")
+    assert_nil item.normalized_cancellation_reason
+  end
+
   test "gunky_stats counts completed dispositions" do
     stats = Item.gunky_stats
 

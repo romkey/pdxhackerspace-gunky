@@ -94,7 +94,11 @@ module ItemsHelper
       names = item.kill_voter_usernames
       lines << "Kill votes: #{names.join(', ')}" if names.any?
     when "cancelled"
-      lines << "Kept by owner: #{item.claimed_by}" if item.claimed_by.present?
+      if item.claimed_by.present?
+        lines << "Kept by owner: #{item.claimed_by}"
+      elsif item.normalized_cancellation_reason.present?
+        lines << "Cancellation reason: #{item.normalized_cancellation_reason}"
+      end
       lines << "No further giveaway actions."
     when "pending"
       if item.votes.any?

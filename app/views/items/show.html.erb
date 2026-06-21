@@ -40,16 +40,27 @@
         <tr>
           <th>Disposition</th>
           <td>
-            <span class="badge <%= disposition_badge_class(@item.disposition) %> fs-6"><%= @item.disposition.capitalize %></span>
+            <span class="badge <%= disposition_badge_class(@item.disposition) %> fs-6"><%= item_disposition_label(@item) %></span>
             <% if @item.expired? && @item.pending? %>
               <span class="badge bg-warning text-dark fs-6">Expired</span>
             <% end %>
           </td>
         </tr>
-        <% if @item.claimed_by.present? %>
+        <% if @item.owned? %>
           <tr>
-            <th><%= @item.cancelled? ? "Kept by" : "Claimed by" %></th>
+            <th>Owned by</th>
             <td><%= @item.claimed_by %></td>
+          </tr>
+        <% elsif @item.claimed_by.present? %>
+          <tr>
+            <th>Claimed by</th>
+            <td><%= @item.claimed_by %></td>
+          </tr>
+        <% end %>
+        <% if @item.giveaway_cancelled? && @item.normalized_cancellation_reason.present? %>
+          <tr>
+            <th>Cancellation reason</th>
+            <td><%= @item.normalized_cancellation_reason %></td>
           </tr>
         <% end %>
         <tr>
