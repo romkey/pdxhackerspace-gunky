@@ -48,7 +48,7 @@ services:
 
   app:
     container_name: gunky-test-app
-    image: ruby:3.3.11-bookworm
+    image: ruby:3.3.12-bookworm
     working_dir: /rails
     volumes:
       - .:/rails
@@ -68,7 +68,7 @@ services:
 
   lint:
     container_name: gunky-test-lint
-    image: ruby:3.3.11-bookworm
+    image: ruby:3.3.12-bookworm
     working_dir: /rails
     volumes:
       - .:/rails
