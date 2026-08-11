@@ -37,7 +37,7 @@ gem "redis", ">= 4.0.1"
 gem "sidekiq"
 gem "sidekiq-cron"
 gem "sentry-rails", "~> 6.6"
-gem "sentry-sidekiq", "~> 6.4"
+gem "sentry-sidekiq", "~> 6.7"
 gem "slack-ruby-client"
 gem "pagy"
 gem "dotenv-rails", groups: [ :development, :test ]
