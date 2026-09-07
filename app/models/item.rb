@@ -32,10 +32,20 @@ class Item < ApplicationRecord
   scope :giveaway_cancelled, -> { cancelled.where(claimed_by: [ nil, "" ]) }
   scope :gunky_completed, -> { where.not(disposition: :pending) }
 
+  # A "mine" item is awaiting pickup while any winner still has an outstanding
+  # vote, and picked up once every winner has collected.
+  scope :awaiting_pickup, -> { mine.where(id: Vote.mine.where(picked_up_at: nil).select(:item_id)) }
+  scope :picked_up, -> {
+    mine.where(id: Vote.mine.select(:item_id))
+        .where.not(id: Vote.mine.where(picked_up_at: nil).select(:item_id))
+  }
+
   def self.gunky_stats
     {
       total: gunky_completed.count,
       new_homes: mine.count,
+      picked_up: picked_up.count,
+      awaiting_pickup: awaiting_pickup.count,
       kept_for_space: foster.count,
       trashed: kill.count,
       owners_found: owned.count,
@@ -81,6 +91,23 @@ class Item < ApplicationRecord
 
   def mine_voter_user_ids_pending_pickup
     mine_voters_pending_pickup.map { |w| w[:slack_user_id] }
+  end
+
+  def mine_voters_picked_up
+    unique_mine_winner_hashes(votes.mine.where.not(picked_up_at: nil))
+  end
+
+  def awaiting_pickup?
+    mine? && votes.mine.where(picked_up_at: nil).exists?
+  end
+
+  def picked_up?
+    mine? && votes.mine.exists? && !votes.mine.where(picked_up_at: nil).exists?
+  end
+
+  # Most recent collection, which is when the item as a whole became picked up.
+  def last_picked_up_at
+    votes.mine.maximum(:picked_up_at)
   end
 
   def foster_voter_usernames
@@ -190,7 +217,9 @@ class Item < ApplicationRecord
     unique_votes.map do |vote|
       {
         slack_user_id: vote.slack_user_id,
-        slack_username: names_by_id[vote.slack_user_id] || vote.slack_username
+        slack_username: names_by_id[vote.slack_user_id] || vote.slack_username,
+        claimed_at: vote.created_at,
+        picked_up_at: vote.picked_up_at
       }
     end
   end

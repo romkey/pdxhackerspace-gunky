@@ -21,6 +21,8 @@
   <div class="d-flex flex-wrap gap-3">
     <span><strong><%= @stats[:total] %></strong> total gunky'd</span>
     <span><strong><%= @stats[:new_homes] %></strong> new homes</span>
+    <span><strong><%= @stats[:picked_up] %></strong> picked up</span>
+    <span><strong><%= @stats[:awaiting_pickup] %></strong> awaiting pickup</span>
     <span><strong><%= @stats[:kept_for_space] %></strong> kept for space</span>
     <span><strong><%= @stats[:trashed] %></strong> trashed</span>
     <span><strong><%= @stats[:owners_found] %></strong> owners found</span>
@@ -57,6 +59,10 @@
               <small><%= item.location.presence || "No location" %></small>
             </p>
             <span class="badge <%= disposition_badge_class(item.disposition) %>"><%= item_disposition_label(item) %></span>
+            <%= pickup_status_badge(item) %>
+            <% if pickup_overdue?(item) %>
+              <span class="badge bg-danger">Pickup overdue</span>
+            <% end %>
             <% if item.pending? %>
               <span class="text-muted ms-1"><small><%= pending_vote_counts_line(item) %></small></span>
             <% end %>
@@ -95,26 +101,47 @@
               </div>
             <% end %>
 
-            <% if item.mine? && item.mine_voters_pending_pickup.any? %>
-              <div class="mt-3">
-                <h6 class="mb-2">Winners</h6>
-                <% item.mine_voters_pending_pickup.each do |winner| %>
-                  <div class="border rounded p-2 mb-2">
-                    <div class="fw-semibold mb-2"><%= winner[:slack_username] %></div>
-                    <div class="d-flex gap-2">
-                      <%= button_to "Forfeit",
-                        winner_forfeit_item_path(item, slack_user_id: winner[:slack_user_id]),
-                        method: :post,
-                        class: "btn btn-outline-danger btn-sm",
-                        form: { data: { turbo_confirm: "Remove #{winner[:slack_username]} from Want winners?" } } %>
-                      <%= button_to "Picked up",
-                        winner_picked_up_item_path(item, slack_user_id: winner[:slack_user_id]),
-                        method: :post,
-                        class: "btn btn-outline-success btn-sm" %>
+            <% if item.mine? %>
+              <% collected = item.mine_voters_picked_up %>
+              <% outstanding = item.mine_voters_pending_pickup %>
+
+              <% if collected.any? %>
+                <div class="mt-3">
+                  <h6 class="mb-2">Collected</h6>
+                  <% collected.each do |winner| %>
+                    <div class="d-flex justify-content-between align-items-center gap-2 small text-muted border-bottom py-1">
+                      <span>&check; <%= winner[:slack_username] %></span>
+                      <span><%= format_pickup_date(winner[:picked_up_at]) %></span>
                     </div>
-                  </div>
-                <% end %>
-              </div>
+                  <% end %>
+                </div>
+              <% end %>
+
+              <% if outstanding.any? %>
+                <div class="mt-3">
+                  <h6 class="mb-1">Awaiting pickup</h6>
+                  <p class="small <%= pickup_overdue?(item) ? "text-danger" : "text-muted" %> mb-2">
+                    <%= pickup_deadline_line(item) %>
+                  </p>
+                  <% outstanding.each do |winner| %>
+                    <div class="border rounded p-2 mb-2">
+                      <div class="fw-semibold"><%= winner[:slack_username] %></div>
+                      <div class="small text-muted mb-2">Claimed <%= format_pickup_date(winner[:claimed_at]) %></div>
+                      <div class="d-flex gap-2">
+                        <%= button_to "Forfeit",
+                          winner_forfeit_item_path(item, slack_user_id: winner[:slack_user_id]),
+                          method: :post,
+                          class: "btn btn-outline-danger btn-sm",
+                          form: { data: { turbo_confirm: "Remove #{winner[:slack_username]} from Want winners?" } } %>
+                        <%= button_to "Picked up",
+                          winner_picked_up_item_path(item, slack_user_id: winner[:slack_user_id]),
+                          method: :post,
+                          class: "btn btn-outline-success btn-sm" %>
+                      </div>
+                    </div>
+                  <% end %>
+                </div>
+              <% end %>
             <% end %>
           </div>
           <div class="card-footer text-muted">

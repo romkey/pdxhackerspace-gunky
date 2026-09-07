@@ -303,6 +303,10 @@ class ItemsController < ApplicationController
       Item.owned
     elsif disposition == "cancelled"
       Item.giveaway_cancelled
+    elsif disposition == "picked_up"
+      Item.picked_up
+    elsif disposition == "awaiting_pickup"
+      Item.awaiting_pickup
     elsif disposition.present? && Item.dispositions.key?(disposition)
       Item.where(disposition: disposition)
     else
