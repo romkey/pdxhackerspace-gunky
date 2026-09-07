@@ -89,7 +89,7 @@ class SlackInteractionsController < ApplicationController
     item_id = action["value"].to_i
     target_user_id = action["action_id"].delete_prefix("expired_forfeit:")
     acting_user_id = payload.dig("user", "id").to_s
-    return unless acting_user_id == target_user_id
+    return unless authorized_for_expired_action?(payload, target_user_id)
 
     item = Item.find_by(id: item_id)
     return unless item
@@ -114,7 +114,7 @@ class SlackInteractionsController < ApplicationController
     item_id = action["value"].to_i
     target_user_id = action["action_id"].delete_prefix("expired_picked_up:")
     acting_user_id = payload.dig("user", "id").to_s
-    return unless acting_user_id == target_user_id
+    return unless authorized_for_expired_action?(payload, target_user_id)
 
     item = Item.find_by(id: item_id)
     return unless item
@@ -133,6 +133,33 @@ class SlackInteractionsController < ApplicationController
 
     Rails.logger.info("Expired item #{item.id}: #{acting_user_id} acknowledged pickup")
     refresh_expired_item_message(item)
+  end
+
+  # The buttons are rendered once per winner, but Slack lets anyone who can see
+  # the message press any of them. Refuse other people's buttons, and say so:
+  # a bare 200 leaves the presser looking at an unchanged message with no clue
+  # why, which is indistinguishable from the app being broken.
+  def authorized_for_expired_action?(payload, target_user_id)
+    acting_user_id = payload.dig("user", "id").to_s
+    return true if acting_user_id == target_user_id
+
+    Rails.logger.info(
+      "Expired item action ignored: #{acting_user_id} pressed a button belonging to #{target_user_id}"
+    )
+    notify_wrong_user(payload, target_user_id)
+    false
+  end
+
+  def notify_wrong_user(payload, target_user_id)
+    SlackService.new.post_ephemeral(
+      channel: payload.dig("channel", "id"),
+      user: payload.dig("user", "id"),
+      text: "Those buttons belong to <@#{target_user_id}> - only they can mark this item " \
+            "picked up or forfeit it. If they can't collect it, ask them to press Forfeit " \
+            "so it passes to the next person."
+    )
+  rescue => e
+    Rails.logger.error("Failed to send wrong-user notice: #{e.class}: #{e.message}")
   end
 
   # Slack keeps rendering old buttons in already-delivered messages, so an

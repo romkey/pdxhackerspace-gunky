@@ -9,7 +9,7 @@ fi
 
 # One-time OS packages for native gems (pg, bootsnap, ruby-vips, etc.).
 # Marker lives on the bundle volume so it persists across runs.
-MARKER="${BUNDLE_PATH:-/usr/local/bundle}/.gunky-test-apt-v2-installed"
+MARKER="${BUNDLE_PATH:-/usr/local/bundle}/.gunky-test-apt-v3-installed"
 if [[ ! -f "${MARKER}" ]]; then
   apt-get update -qq
   DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -21,18 +21,27 @@ if [[ ! -f "${MARKER}" ]]; then
     libvips42 \
     libvips-dev \
     libyaml-dev \
-    nodejs \
-    npm \
     pkg-config \
     postgresql-client \
     >/dev/null
   touch "${MARKER}"
 fi
 
-# Markers created before Node was added skip the block above; ensure npm exists.
-if ! command -v npm >/dev/null 2>&1; then
+# Node for cssbundling. Debian bookworm ships Node 18, which cannot require the
+# ESM-only chokidar that sass depends on ("ERR_REQUIRE_ESM" during css:build).
+# CI runs Node 22 and the app image builds on 25, so track CI here.
+NODE_MAJOR=22
+node_major_installed() {
+  command -v node >/dev/null 2>&1 || return 1
+  node -p "process.versions.node.split('.')[0]" 2>/dev/null
+}
+current_node="$(node_major_installed || echo 0)"
+if [[ "${current_node}" -lt "${NODE_MAJOR}" ]]; then
   apt-get update -qq
-  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends nodejs npm >/dev/null
+  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    ca-certificates curl gnupg >/dev/null
+  curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | bash - >/dev/null 2>&1
+  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends nodejs >/dev/null
 fi
 
 bundle check || bundle install -j"$(nproc)"

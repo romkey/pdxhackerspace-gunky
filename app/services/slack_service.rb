@@ -74,6 +74,17 @@ class SlackService
     end
   end
 
+  # Ephemeral note visible only to one person in the channel. Used to explain a
+  # button press that was deliberately ignored, which otherwise looks identical
+  # to the app being broken.
+  def post_ephemeral(channel:, user:, text:)
+    return if channel.blank? || user.blank?
+
+    payload = { channel: channel, user: user, text: text }
+    log_payload("chat_postEphemeral", payload)
+    @client.chat_postEphemeral(**payload)
+  end
+
   def replace_expired_item_message(item)
     if item.posted_to_slack?
       begin
