@@ -33,7 +33,10 @@ gem "thruster", require: false
 gem "image_processing", "~> 2.0"
 gem "ruby-vips", "~> 2.0"
 
-gem "redis", ">= 4.0.1"
+# Capped below 6 because Action Cable's redis pubsub adapter (used in production
+# for the Turbo Stream broadcasts in DescribeItemJob) depends on redis >= 4, < 6.
+# Activating redis 6 raises Gem::LoadError the first time a broadcast happens.
+gem "redis", ">= 4.0.1", "< 6"
 gem "sidekiq"
 gem "sidekiq-cron"
 gem "sentry-rails", "~> 6.6"
