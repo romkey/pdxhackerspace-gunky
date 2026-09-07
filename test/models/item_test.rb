@@ -118,6 +118,78 @@ class ItemTest < ActiveSupport::TestCase
     assert_nil item.cancellation_reason
   end
 
+  test "picked_up scope covers mine items whose every winner collected" do
+    all_collected = Item.create!(description: "All collected", disposition: :mine)
+    all_collected.votes.create!(slack_user_id: "U1", slack_username: "a", choice: :mine, picked_up_at: Time.current)
+    all_collected.votes.create!(slack_user_id: "U2", slack_username: "b", choice: :mine, picked_up_at: Time.current)
+
+    partly = Item.create!(description: "Partly collected", disposition: :mine)
+    partly.votes.create!(slack_user_id: "U1", slack_username: "a", choice: :mine, picked_up_at: Time.current)
+    partly.votes.create!(slack_user_id: "U2", slack_username: "b", choice: :mine)
+
+    none = Item.create!(description: "None collected", disposition: :mine)
+    none.votes.create!(slack_user_id: "U1", slack_username: "a", choice: :mine)
+
+    no_votes = Item.create!(description: "No mine votes", disposition: :mine)
+
+    picked = Item.picked_up
+    assert_includes picked, all_collected
+    assert_not_includes picked, partly
+    assert_not_includes picked, none
+    assert_not_includes picked, no_votes
+
+    awaiting = Item.awaiting_pickup
+    assert_includes awaiting, partly
+    assert_includes awaiting, none
+    assert_not_includes awaiting, all_collected
+    assert_not_includes awaiting, no_votes
+  end
+
+  test "picked_up? and awaiting_pickup? mirror the scopes" do
+    item = Item.create!(description: "Toolbox", disposition: :mine)
+    vote = item.votes.create!(slack_user_id: "U1", slack_username: "a", choice: :mine)
+
+    assert item.awaiting_pickup?
+    assert_not item.picked_up?
+
+    vote.update!(picked_up_at: Time.current)
+    item.reload
+
+    assert item.picked_up?
+    assert_not item.awaiting_pickup?
+  end
+
+  test "pickup predicates are false for items that are not mine" do
+    item = Item.create!(description: "Trashed", disposition: :kill)
+    item.votes.create!(slack_user_id: "U1", slack_username: "a", choice: :mine, picked_up_at: Time.current)
+
+    assert_not item.picked_up?
+    assert_not item.awaiting_pickup?
+  end
+
+  test "mine_voters_picked_up carries pickup and claim timestamps" do
+    item = Item.create!(description: "Plane", disposition: :mine)
+    collected_at = 2.days.ago
+    item.votes.create!(slack_user_id: "U1", slack_username: "a", choice: :mine, picked_up_at: collected_at)
+    item.votes.create!(slack_user_id: "U2", slack_username: "b", choice: :mine)
+
+    collected = item.mine_voters_picked_up
+    assert_equal [ "U1" ], collected.map { |w| w[:slack_user_id] }
+    assert_in_delta collected_at, collected.first[:picked_up_at], 1.second
+    assert collected.first[:claimed_at].present?
+
+    assert_equal [ "U2" ], item.mine_voters_pending_pickup.map { |w| w[:slack_user_id] }
+  end
+
+  test "last_picked_up_at reports the most recent collection" do
+    item = Item.create!(description: "Plane", disposition: :mine)
+    item.votes.create!(slack_user_id: "U1", slack_username: "a", choice: :mine, picked_up_at: 3.days.ago)
+    latest = 1.hour.ago
+    item.votes.create!(slack_user_id: "U2", slack_username: "b", choice: :mine, picked_up_at: latest)
+
+    assert_in_delta latest, item.last_picked_up_at, 1.second
+  end
+
   test "gunky_stats counts completed dispositions" do
     stats = Item.gunky_stats
 
@@ -127,6 +199,8 @@ class ItemTest < ActiveSupport::TestCase
     assert_equal Item.kill.count, stats[:trashed]
     assert_equal Item.owned.count, stats[:owners_found]
     assert_equal Item.giveaway_cancelled.count, stats[:cancelled]
+    assert_equal Item.picked_up.count, stats[:picked_up]
+    assert_equal Item.awaiting_pickup.count, stats[:awaiting_pickup]
   end
 
   test "dispose! records disposal time" do

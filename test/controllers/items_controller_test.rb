@@ -219,7 +219,7 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     get items_path
 
     assert_response :success
-    assert_select "h6", text: "Winners"
+    assert_select "h6", text: "Awaiting pickup"
     assert_select "form[action='#{winner_forfeit_item_path(item, slack_user_id: "U111")}']"
     assert_select "form[action='#{winner_picked_up_item_path(item, slack_user_id: "U111")}']"
     assert_select "form[action='#{winner_forfeit_item_path(item, slack_user_id: "U222")}']"
@@ -872,5 +872,75 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     yield
   ensure
     klass.define_method(method_name, original_method)
+  end
+  test "index filters to items where every winner has collected" do
+    collected = Item.create!(description: "Collected crate", disposition: :mine)
+    collected.votes.create!(slack_user_id: "U1", slack_username: "a", choice: :mine, picked_up_at: Time.current)
+
+    outstanding = Item.create!(description: "Outstanding crate", disposition: :mine)
+    outstanding.votes.create!(slack_user_id: "U2", slack_username: "b", choice: :mine)
+
+    get items_path(disposition: "picked_up")
+
+    assert_response :success
+    assert_select "a", text: "Collected crate"
+    assert_select "a", text: "Outstanding crate", count: 0
+  end
+
+  test "index filters to items still awaiting pickup" do
+    collected = Item.create!(description: "Collected crate", disposition: :mine)
+    collected.votes.create!(slack_user_id: "U1", slack_username: "a", choice: :mine, picked_up_at: Time.current)
+
+    outstanding = Item.create!(description: "Outstanding crate", disposition: :mine)
+    outstanding.votes.create!(slack_user_id: "U2", slack_username: "b", choice: :mine)
+
+    get items_path(disposition: "awaiting_pickup")
+
+    assert_response :success
+    assert_select "a", text: "Outstanding crate"
+    assert_select "a", text: "Collected crate", count: 0
+  end
+
+  test "index badges a fully collected item as picked up and names who collected it" do
+    item = Item.create!(description: "Vintage plane", disposition: :mine, claimed_by: "alice")
+    item.votes.create!(slack_user_id: "U1", slack_username: "alice", choice: :mine, picked_up_at: Time.current)
+
+    get items_path(disposition: "picked_up")
+
+    assert_response :success
+    assert_select "span.badge.bg-success", text: "Picked up"
+    assert_select "h6", text: "Collected"
+    assert_includes response.body, "alice"
+    assert_includes response.body, "today"
+  end
+
+  test "index badges an uncollected item as awaiting pickup" do
+    item = Item.create!(description: "Uncollected plane", disposition: :mine, expiration_date: Date.current)
+    item.votes.create!(slack_user_id: "U1", slack_username: "alice", choice: :mine)
+
+    get items_path(disposition: "awaiting_pickup")
+
+    assert_response :success
+    assert_select "span.badge.bg-warning", text: "Awaiting pickup"
+    assert_select "span.badge.bg-danger", text: "Pickup overdue", count: 0
+  end
+
+  test "index flags an item whose pickup deadline has passed" do
+    item = Item.create!(description: "Overdue plane", disposition: :mine, expiration_date: Date.current - 30.days)
+    item.votes.create!(slack_user_id: "U1", slack_username: "alice", choice: :mine)
+
+    get items_path(disposition: "awaiting_pickup")
+
+    assert_response :success
+    assert_select "span.badge.bg-danger", text: "Pickup overdue"
+    assert_includes response.body, "days overdue"
+  end
+
+  test "index stats report picked up and awaiting pickup counts" do
+    get items_path
+
+    assert_response :success
+    assert_includes response.body, "picked up"
+    assert_includes response.body, "awaiting pickup"
   end
 end

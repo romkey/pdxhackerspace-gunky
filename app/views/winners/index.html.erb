@@ -1,17 +1,31 @@
 <div class="mb-4">
   <h1 class="mb-0">Winners</h1>
-  <p class="text-muted mb-0">People with mine items still awaiting pickup.</p>
+  <p class="text-muted mb-0">People with mine items still awaiting pickup, most overdue first.</p>
 </div>
 
 <% if @winner_rows.any? %>
   <% @winner_rows.each do |row| %>
     <div class="card mb-4">
-      <div class="card-header fw-semibold"><%= row[:slack_username] %></div>
+      <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span class="fw-semibold"><%= row[:slack_username] %></span>
+        <span>
+          <% if row[:overdue_count].positive? %>
+            <span class="badge bg-danger"><%= pluralize(row[:overdue_count], "item") %> overdue</span>
+          <% end %>
+          <span class="badge bg-secondary"><%= pluralize(row[:entries].size, "item") %> awaiting</span>
+        </span>
+      </div>
       <ul class="list-group list-group-flush">
-        <% row[:items].each do |item| %>
+        <% row[:entries].each do |entry| %>
+          <% item = entry[:item] %>
           <li class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2">
             <div>
-              <%= link_to item.display_description, item_path(item) %>
+              <div><%= link_to item.display_description, item_path(item) %></div>
+              <div class="small text-muted">
+                Claimed <%= format_pickup_date(entry[:claimed_at]) %>
+                &middot; Completed <%= item.expiration_date&.strftime("%b %d, %Y") || "unknown date" %>
+                &middot; <span class="<%= pickup_overdue?(item) ? "text-danger fw-semibold" : "" %>"><%= pickup_deadline_line(item) %></span>
+              </div>
             </div>
             <div class="d-flex flex-wrap gap-2">
               <%= button_to "Forfeit",

@@ -15,6 +15,8 @@ module ItemsHelper
     [ "Want", "mine" ],
     [ "Keep", "foster" ],
     [ "Trash", "kill" ],
+    [ "Awaiting pickup", "awaiting_pickup" ],
+    [ "Picked up", "picked_up" ],
     [ "Owned", "owned" ]
   ].freeze
 
@@ -74,6 +76,41 @@ module ItemsHelper
 
   def vote_choice_label(choice)
     VOTE_LABELS[choice.to_s] || choice.to_s.capitalize
+  end
+
+  # "Mine" items split into collected and still-outstanding; everything else has
+  # no pickup dimension, so it gets no badge.
+  def pickup_status_badge(item)
+    return unless item.mine?
+
+    if item.picked_up?
+      tag.span("Picked up", class: "badge bg-success")
+    elsif item.awaiting_pickup?
+      tag.span("Awaiting pickup", class: "badge bg-warning text-dark")
+    end
+  end
+
+  def format_pickup_date(time)
+    return "unknown date" if time.blank?
+
+    time.to_date == Date.current ? "today" : time.strftime("%b %d, %Y")
+  end
+
+  def pickup_overdue?(item)
+    deadline = item.pickup_deadline_date
+    deadline.present? && item.awaiting_pickup? && deadline < Date.current
+  end
+
+  def pickup_deadline_line(item)
+    deadline = item.pickup_deadline_date
+    return "No pickup deadline" if deadline.blank?
+
+    if pickup_overdue?(item)
+      days = (Date.current - deadline).to_i
+      "Due #{deadline.strftime('%b %d, %Y')} - #{pluralize(days, 'day')} overdue"
+    else
+      "Due #{deadline.strftime('%b %d, %Y')}"
+    end
   end
 
   def pending_vote_counts_line(item)
