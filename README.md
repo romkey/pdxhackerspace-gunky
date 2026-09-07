@@ -1,5 +1,12 @@
 # Gunky
 
+[![CI](https://github.com/romkey/pdxhackerspace-gunky/actions/workflows/ci.yml/badge.svg)](https://github.com/romkey/pdxhackerspace-gunky/actions/workflows/ci.yml)
+[![Lint](https://github.com/romkey/pdxhackerspace-gunky/actions/workflows/lint.yml/badge.svg)](https://github.com/romkey/pdxhackerspace-gunky/actions/workflows/lint.yml)
+[![Build](https://github.com/romkey/pdxhackerspace-gunky/actions/workflows/release.yml/badge.svg)](https://github.com/romkey/pdxhackerspace-gunky/actions/workflows/release.yml)
+[![Ruby](https://img.shields.io/badge/Ruby-3.3.12-CC342D?logo=ruby&logoColor=white)](.ruby-version)
+[![Rails](https://img.shields.io/badge/Rails-8.1.3-D30001?logo=rubyonrails&logoColor=white)](Gemfile)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 *Pronounced the same way you pronounce "GIF."*
 
 **G**unky **U**proots **N**asty [**K**ipple](#kipple), **Y**ay!
@@ -67,12 +74,16 @@ docker compose -f docker-compose.test.yml run --rm lint
 
 ## Tech Stack
 
-- Rails 8.1.3 / Ruby 3.3.11
+- Rails 8.1.3 / Ruby 3.3.12
 - PostgreSQL 16 (development Compose) / PostgreSQL 18 (test Compose)
 - Redis 7 / Sidekiq
 - Bootstrap 5.3
 - Stimulus / Turbo
 - Prawn (receipt PDFs for `lp`)
+
+## License
+
+MIT — see [LICENSE](LICENSE).
 
 ## Kipple?
 
