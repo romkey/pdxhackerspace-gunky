@@ -2,6 +2,8 @@
 require "rubygems"
 require "bundler/setup"
 
-ARGV.unshift("--ensure-latest")
-
+# Deliberately no --ensure-latest: it makes Brakeman exit 5 whenever the version
+# pinned in Gemfile.lock is behind the newest release, which turns every upstream
+# release into a red CI build that says nothing about this app's security.
+# Dependabot already keeps the gem current.
 load Gem.bin_path("brakeman", "brakeman")
