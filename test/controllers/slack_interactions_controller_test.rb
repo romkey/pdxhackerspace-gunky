@@ -228,7 +228,43 @@ class SlackInteractionsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "forfeit from different user is ignored" do
+  test "pressing another winner's button is refused with an ephemeral explanation" do
+    item = Item.create!(
+      description: "Stanley 45 vintage plane",
+      expiration_date: Date.current - 1.day,
+      disposition: :mine,
+      claimed_by: "John Bates",
+      slack_channel_id: "C0AL57D5TKK",
+      slack_message_ts: "1788699642.925869"
+    )
+    vote = item.votes.create!(slack_user_id: "U075213URB3", slack_username: "John Bates", choice: :mine)
+
+    ephemeral = []
+    original = SlackService.instance_method(:post_ephemeral)
+    SlackService.define_method(:post_ephemeral) { |**kwargs| ephemeral << kwargs }
+
+    payload = build_payload(
+      action_id: "expired_picked_up:U075213URB3",
+      item_id: item.id,
+      user_id: "U93K5R9QV",
+      username: "romkey"
+    ).merge(channel: { id: "C0AL57D5TKK", name: "spring-cleaning" })
+
+    post slack_interactions_path, params: { payload: payload.to_json }
+
+    assert_response :ok
+    assert_nil vote.reload.picked_up_at
+    assert item.reload.mine?
+
+    assert_equal 1, ephemeral.size
+    assert_equal "C0AL57D5TKK", ephemeral.first[:channel]
+    assert_equal "U93K5R9QV", ephemeral.first[:user]
+    assert_includes ephemeral.first[:text], "<@U075213URB3>"
+  ensure
+    SlackService.define_method(:post_ephemeral, original)
+  end
+
+  test "forfeit from a different user is refused with an ephemeral explanation" do
     item = Item.create!(
       description: "Expired item",
       expiration_date: Date.current - 1.day,
@@ -239,18 +275,53 @@ class SlackInteractionsControllerTest < ActionDispatch::IntegrationTest
     )
     item.votes.create!(slack_user_id: "U001", slack_username: "alice", choice: :mine)
 
+    ephemeral = []
+    original = SlackService.instance_method(:post_ephemeral)
+    SlackService.define_method(:post_ephemeral) { |**kwargs| ephemeral << kwargs }
+
     payload = build_payload(
       action_id: "expired_forfeit:U001",
       item_id: item.id,
       user_id: "U999",
       username: "mallory"
-    )
+    ).merge(channel: { id: "C123" })
 
     post slack_interactions_path, params: { payload: payload.to_json }
 
     assert_response :ok
+    assert_equal 1, ephemeral.size
+    assert_includes ephemeral.first[:text], "<@U001>"
     assert item.votes.find_by(slack_user_id: "U001", choice: :mine).present?
     assert item.reload.mine?
+  ensure
+    SlackService.define_method(:post_ephemeral, original)
+  end
+
+  test "returns ok when the wrong-user notice cannot be delivered" do
+    item = Item.create!(
+      description: "Expired item",
+      expiration_date: Date.current - 1.day,
+      disposition: :mine,
+      slack_channel_id: "C123",
+      slack_message_ts: "111.222"
+    )
+    item.votes.create!(slack_user_id: "U001", slack_username: "alice", choice: :mine)
+
+    original = SlackService.instance_method(:post_ephemeral)
+    SlackService.define_method(:post_ephemeral) { |**| raise "slack is down" }
+
+    payload = build_payload(
+      action_id: "expired_picked_up:U001",
+      item_id: item.id,
+      user_id: "U999",
+      username: "mallory"
+    ).merge(channel: { id: "C123" })
+
+    post slack_interactions_path, params: { payload: payload.to_json }
+
+    assert_response :ok
+  ensure
+    SlackService.define_method(:post_ephemeral, original)
   end
 
   test "ignores vote on non-pending item" do

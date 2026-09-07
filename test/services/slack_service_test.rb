@@ -263,6 +263,28 @@ class SlackServiceTest < ActiveSupport::TestCase
     assert_not_empty image_block[:alt_text]
   end
 
+  test "post_ephemeral sends a private note to one user in the channel" do
+    service = SlackService.new
+    client = FakeSlackClient.new
+    service.instance_variable_set(:@client, client)
+
+    service.post_ephemeral(channel: "C123", user: "U999", text: "not your button")
+
+    assert_equal 1, client.ephemeral_calls.size
+    assert_equal({ channel: "C123", user: "U999", text: "not your button" }, client.ephemeral_calls.first)
+  end
+
+  test "post_ephemeral does nothing without a channel or user" do
+    service = SlackService.new
+    client = FakeSlackClient.new
+    service.instance_variable_set(:@client, client)
+
+    service.post_ephemeral(channel: nil, user: "U999", text: "hi")
+    service.post_ephemeral(channel: "C123", user: nil, text: "hi")
+
+    assert_equal 0, client.ephemeral_calls.size
+  end
+
   test "update_expired_item_message rewrites the existing post in place" do
     item = Item.create!(
       description: "Vintage lamp",
@@ -575,7 +597,7 @@ class SlackServiceTest < ActiveSupport::TestCase
   end
 
   class FakeSlackClient
-    attr_reader :post_calls, :update_calls, :delete_calls
+    attr_reader :post_calls, :update_calls, :delete_calls, :ephemeral_calls
 
     def initialize(ts: "0.0", channel: "C000", delete_error: nil, fail_first_post_with_image: false)
       @ts = ts
@@ -586,6 +608,7 @@ class SlackServiceTest < ActiveSupport::TestCase
       @post_calls = []
       @update_calls = []
       @delete_calls = []
+      @ephemeral_calls = []
     end
 
     def chat_postMessage(**kwargs)
@@ -603,6 +626,11 @@ class SlackServiceTest < ActiveSupport::TestCase
 
       @post_calls << kwargs
       { "ts" => @ts, "channel" => @channel }
+    end
+
+    def chat_postEphemeral(**kwargs)
+      @ephemeral_calls << kwargs
+      {}
     end
 
     def chat_update(**kwargs)
