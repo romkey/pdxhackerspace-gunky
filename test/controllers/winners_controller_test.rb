@@ -85,6 +85,39 @@ class WinnersControllerTest < ActionDispatch::IntegrationTest
     assert_not_includes response.body, "days overdue"
   end
 
+  test "index renders when one winner has items with and without a pickup deadline" do
+    # Item without an expiration date has no pickup_deadline_date. Ordering it
+    # against dated items must not depend on which side of the comparison it
+    # lands on.
+    undated = Item.create!(description: "Aaa undated crate", disposition: :mine)
+    undated.update!(expiration_date: nil)
+    dated = Item.create!(description: "Zzz dated crate", disposition: :mine, expiration_date: Date.current - 2.days)
+
+    undated.votes.create!(slack_user_id: "U100", slack_username: "alice", choice: :mine)
+    dated.votes.create!(slack_user_id: "U100", slack_username: "alice", choice: :mine)
+
+    get winners_path
+
+    assert_response :success
+    assert_select "a[href='#{item_path(undated)}']", text: "Aaa undated crate"
+    assert_select "a[href='#{item_path(dated)}']", text: "Zzz dated crate"
+    assert_includes response.body, "No pickup deadline"
+  end
+
+  test "index sorts undated pickups after dated ones" do
+    undated = Item.create!(description: "Undated crate", disposition: :mine)
+    undated.update!(expiration_date: nil)
+    dated = Item.create!(description: "Dated crate", disposition: :mine, expiration_date: Date.current - 2.days)
+
+    undated.votes.create!(slack_user_id: "U100", slack_username: "alice", choice: :mine)
+    dated.votes.create!(slack_user_id: "U100", slack_username: "alice", choice: :mine)
+
+    get winners_path
+
+    assert_response :success
+    assert_operator response.body.index("Dated crate"), :<, response.body.index("Undated crate")
+  end
+
   test "index omits items the user has already picked up" do
     item = Item.create!(
       description: "Toolbox",
