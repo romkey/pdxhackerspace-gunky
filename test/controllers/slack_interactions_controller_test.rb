@@ -110,7 +110,7 @@ class SlackInteractionsControllerTest < ActionDispatch::IntegrationTest
     SlackService.define_method(:cancel_item_message, original_cancel)
   end
 
-  test "forfeit removes mine vote and re-resolves item without reposting to Slack" do
+  test "forfeit removes mine vote, re-resolves item and refreshes the Slack message in place" do
     item = Item.create!(
       description: "Expired item",
       expiration_date: Date.current - 1.day,
@@ -122,30 +122,57 @@ class SlackInteractionsControllerTest < ActionDispatch::IntegrationTest
     item.votes.create!(slack_user_id: "U001", slack_username: "alice", choice: :mine)
     item.votes.create!(slack_user_id: "U002", slack_username: "bob", choice: :foster)
 
-    repost_called = false
-    original = SlackService.instance_method(:replace_expired_item_message)
-    SlackService.define_method(:replace_expired_item_message) { |_| repost_called = true }
+    stub_expired_slack_calls do |calls|
+      payload = build_payload(
+        action_id: "expired_forfeit:U001",
+        item_id: item.id,
+        user_id: "U001",
+        username: "alice"
+      )
 
-    payload = build_payload(
-      action_id: "expired_forfeit:U001",
-      item_id: item.id,
-      user_id: "U001",
-      username: "alice"
-    )
+      post slack_interactions_path, params: { payload: payload.to_json }
 
-    post slack_interactions_path, params: { payload: payload.to_json }
-
-    assert_response :ok
-    assert_not repost_called
-    assert_nil item.votes.find_by(slack_user_id: "U001", choice: :mine)
-    assert item.reload.foster?
-  ensure
-    SlackService.define_method(:replace_expired_item_message, original)
+      assert_response :ok
+      assert_equal 0, calls[:repost]
+      assert_equal 1, calls[:update]
+      assert_nil item.votes.find_by(slack_user_id: "U001", choice: :mine)
+      assert item.reload.foster?
+    end
   end
 
-  test "picked up sets picked_up_at and claimed_by without reposting to Slack" do
+  test "forfeit on an already picked-up winner is ignored but still refreshes the message" do
     item = Item.create!(
-      description: "Pickup test",
+      description: "Expired item",
+      expiration_date: Date.current - 1.day,
+      disposition: :mine,
+      claimed_by: "alice",
+      slack_channel_id: "C123",
+      slack_message_ts: "111.222"
+    )
+    vote = item.votes.create!(
+      slack_user_id: "U001", slack_username: "alice", choice: :mine, picked_up_at: Time.current
+    )
+
+    stub_expired_slack_calls do |calls|
+      payload = build_payload(
+        action_id: "expired_forfeit:U001",
+        item_id: item.id,
+        user_id: "U001",
+        username: "alice"
+      )
+
+      post slack_interactions_path, params: { payload: payload.to_json }
+
+      assert_response :ok
+      assert_equal 1, calls[:update]
+      assert vote.reload.persisted?
+      assert item.reload.mine?
+    end
+  end
+
+  test "returns ok when refreshing the expired Slack message fails" do
+    item = Item.create!(
+      description: "Expired item",
       expiration_date: Date.current - 1.day,
       disposition: :mine,
       claimed_by: "alice",
@@ -154,9 +181,8 @@ class SlackInteractionsControllerTest < ActionDispatch::IntegrationTest
     )
     vote = item.votes.create!(slack_user_id: "U001", slack_username: "alice", choice: :mine)
 
-    repost_called = false
-    original = SlackService.instance_method(:replace_expired_item_message)
-    SlackService.define_method(:replace_expired_item_message) { |_| repost_called = true }
+    original = SlackService.instance_method(:update_expired_item_message)
+    SlackService.define_method(:update_expired_item_message) { |_| raise "slack is down" }
 
     payload = build_payload(
       action_id: "expired_picked_up:U001",
@@ -168,11 +194,38 @@ class SlackInteractionsControllerTest < ActionDispatch::IntegrationTest
     post slack_interactions_path, params: { payload: payload.to_json }
 
     assert_response :ok
-    assert_not repost_called
     assert vote.reload.picked_up_at.present?
-    assert_equal "alice", item.reload.claimed_by
   ensure
-    SlackService.define_method(:replace_expired_item_message, original)
+    SlackService.define_method(:update_expired_item_message, original)
+  end
+
+  test "picked up sets picked_up_at and claimed_by and refreshes the Slack message in place" do
+    item = Item.create!(
+      description: "Pickup test",
+      expiration_date: Date.current - 1.day,
+      disposition: :mine,
+      claimed_by: "alice",
+      slack_channel_id: "C123",
+      slack_message_ts: "111.222"
+    )
+    vote = item.votes.create!(slack_user_id: "U001", slack_username: "alice", choice: :mine)
+
+    stub_expired_slack_calls do |calls|
+      payload = build_payload(
+        action_id: "expired_picked_up:U001",
+        item_id: item.id,
+        user_id: "U001",
+        username: "alice"
+      )
+
+      post slack_interactions_path, params: { payload: payload.to_json }
+
+      assert_response :ok
+      assert_equal 0, calls[:repost]
+      assert_equal 1, calls[:update]
+      assert vote.reload.picked_up_at.present?
+      assert_equal "alice", item.reload.claimed_by
+    end
   end
 
   test "forfeit from different user is ignored" do
@@ -324,6 +377,20 @@ class SlackInteractionsControllerTest < ActionDispatch::IntegrationTest
     yield
   ensure
     SlackService.define_method(:update_item_message, original)
+  end
+
+  # Counts the two ways the completed-item message can be rewritten so tests can
+  # assert we update in place rather than delete-and-repost.
+  def stub_expired_slack_calls
+    calls = { update: 0, repost: 0 }
+    original_update = SlackService.instance_method(:update_expired_item_message)
+    original_repost = SlackService.instance_method(:replace_expired_item_message)
+    SlackService.define_method(:update_expired_item_message) { |_| calls[:update] += 1 }
+    SlackService.define_method(:replace_expired_item_message) { |_| calls[:repost] += 1 }
+    yield calls
+  ensure
+    SlackService.define_method(:update_expired_item_message, original_update)
+    SlackService.define_method(:replace_expired_item_message, original_repost)
   end
 
   def build_payload(action_id:, item_id:, user_id:, username:)

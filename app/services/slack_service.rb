@@ -54,6 +54,26 @@ class SlackService
     @client.chat_update(**payload)
   end
 
+  # Refreshes the already-posted "has completed" message in place so the
+  # Forfeit / Picked up buttons reflect the current state after a click.
+  def update_expired_item_message(item)
+    return unless item.posted_to_slack?
+
+    text = expired_item_text(item)
+    want_image = item.photo.attached?
+
+    begin
+      chat_update_expired(item, text, expired_item_blocks(item, include_image: want_image))
+    rescue Slack::Web::Api::Errors::SlackError => e
+      raise unless want_image && slack_error_may_be_image_block?(e)
+
+      Rails.logger.warn(
+        "SlackService update_expired_item_message retry without image for item #{item.id}: #{e.class}: #{e.message}"
+      )
+      chat_update_expired(item, text, expired_item_blocks(item, include_image: false))
+    end
+  end
+
   def replace_expired_item_message(item)
     if item.posted_to_slack?
       begin
@@ -121,6 +141,12 @@ class SlackService
       slack_message_ts: response["ts"],
       slack_channel_id: response["channel"]
     )
+  end
+
+  def chat_update_expired(item, text, blocks)
+    payload = { channel: item.slack_channel_id, ts: item.slack_message_ts, text: text, blocks: blocks }
+    log_payload("chat_update_expired", payload)
+    @client.chat_update(**payload)
   end
 
   def chat_post_expired(channel, text, blocks)

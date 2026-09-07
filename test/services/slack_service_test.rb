@@ -263,6 +263,76 @@ class SlackServiceTest < ActiveSupport::TestCase
     assert_not_empty image_block[:alt_text]
   end
 
+  test "update_expired_item_message rewrites the existing post in place" do
+    item = Item.create!(
+      description: "Vintage lamp",
+      location: "Shelf B",
+      expiration_date: Date.current - 1.day,
+      disposition: :mine,
+      slack_channel_id: "C123",
+      slack_message_ts: "111.222"
+    )
+    item.votes.create!(slack_user_id: "U100", slack_username: "alice", choice: :mine)
+    item.votes.create!(
+      slack_user_id: "U200", slack_username: "bob", choice: :mine, picked_up_at: Time.current
+    )
+
+    service = SlackService.new
+    client = FakeSlackClient.new
+    service.instance_variable_set(:@client, client)
+
+    service.update_expired_item_message(item)
+
+    assert_equal 0, client.post_calls.size
+    assert_equal 0, client.delete_calls.size
+    assert_equal 1, client.update_calls.size
+
+    call = client.update_calls.first
+    assert_equal "C123", call[:channel]
+    assert_equal "111.222", call[:ts]
+    assert_includes call[:text], "<@U100>"
+    assert_not_includes call[:text], "<@U200>"
+
+    action_ids = call[:blocks].select { |b| b[:type] == "actions" }
+                              .flat_map { |b| b[:elements].map { |e| e[:action_id] } }
+    assert_equal [ "expired_forfeit:U100", "expired_picked_up:U100" ], action_ids
+  end
+
+  test "update_expired_item_message drops the action blocks once every winner is resolved" do
+    item = Item.create!(
+      description: "Vintage lamp",
+      expiration_date: Date.current - 1.day,
+      disposition: :mine,
+      slack_channel_id: "C123",
+      slack_message_ts: "111.222"
+    )
+    item.votes.create!(
+      slack_user_id: "U100", slack_username: "alice", choice: :mine, picked_up_at: Time.current
+    )
+
+    service = SlackService.new
+    client = FakeSlackClient.new
+    service.instance_variable_set(:@client, client)
+
+    service.update_expired_item_message(item)
+
+    call = client.update_calls.first
+    assert_includes call[:text], "All mine winners have picked up"
+    assert_empty call[:blocks].select { |b| b[:type] == "actions" }
+  end
+
+  test "update_expired_item_message does nothing for an unposted item" do
+    item = Item.create!(description: "Never posted", expiration_date: Date.current - 1.day, disposition: :kill)
+
+    service = SlackService.new
+    client = FakeSlackClient.new
+    service.instance_variable_set(:@client, client)
+
+    service.update_expired_item_message(item)
+
+    assert_equal 0, client.update_calls.size
+  end
+
   test "replace_expired_item_message deletes original post and posts mine mentions" do
     item = Item.create!(
       description: "Vintage lamp",
