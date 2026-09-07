@@ -94,11 +94,20 @@ class SlackInteractionsController < ApplicationController
     item = Item.find_by(id: item_id)
     return unless item
 
-    mine_vote = item.votes.find_by(slack_user_id: target_user_id, choice: :mine)
-    return unless mine_vote
+    mine_vote = pending_pickup_vote(item, target_user_id)
+    unless mine_vote
+      Rails.logger.info(
+        "Expired item #{item.id}: forfeit ignored, no pending pickup for #{acting_user_id}"
+      )
+      refresh_expired_item_message(item)
+      return
+    end
 
     mine_vote.destroy!
     item.resolve_from_votes!
+
+    Rails.logger.info("Expired item #{item.id}: #{acting_user_id} forfeited")
+    refresh_expired_item_message(item)
   end
 
   def handle_expired_picked_up_action(payload, action)
@@ -110,13 +119,39 @@ class SlackInteractionsController < ApplicationController
     item = Item.find_by(id: item_id)
     return unless item
 
-    mine_vote = item.votes.find_by(slack_user_id: target_user_id, choice: :mine)
-    return unless mine_vote
+    mine_vote = pending_pickup_vote(item, target_user_id)
+    unless mine_vote
+      Rails.logger.info(
+        "Expired item #{item.id}: pickup ignored, no pending pickup for #{acting_user_id}"
+      )
+      refresh_expired_item_message(item)
+      return
+    end
 
     mine_vote.update!(picked_up_at: Time.current)
     item.update!(disposition: :mine, claimed_by: mine_vote.slack_username)
 
     Rails.logger.info("Expired item #{item.id}: #{acting_user_id} acknowledged pickup")
+    refresh_expired_item_message(item)
+  end
+
+  # Slack keeps rendering old buttons in already-delivered messages, so an
+  # action is only honoured while the winner still has an outstanding pickup.
+  def pending_pickup_vote(item, slack_user_id)
+    item.votes.find_by(slack_user_id: slack_user_id, choice: :mine, picked_up_at: nil)
+  end
+
+  # Rewrites the completed-item message so the buttons and text match the new
+  # state. Failures here must not fail the interaction: Slack shows the user an
+  # error banner for any non-2xx response.
+  def refresh_expired_item_message(item)
+    return unless item.posted_to_slack?
+
+    SlackService.new.update_expired_item_message(item)
+  rescue => e
+    Rails.logger.error(
+      "Failed to refresh expired Slack message for item #{item.id}: #{e.class}: #{e.message}"
+    )
   end
 
   def resolve_slack_name(user)
