@@ -50,12 +50,14 @@ class Item < ApplicationRecord
 
     terms.reduce(all) do |scope, term|
       pattern = "%#{sanitize_sql_like(term)}%"
-      clauses = SEARCH_COLUMNS.map { |column| "items.#{column} ILIKE :pattern" }
-      clauses << "items.id IN (SELECT votes.item_id FROM votes WHERE votes.slack_username ILIKE :pattern)"
-      id = term.delete_prefix("#")
-      clauses << "items.id = :id" if id.match?(/\A\d{1,18}\z/)
+      voted_item_ids = Vote.where(Vote.arel_table[:slack_username].matches(pattern)).select(:item_id)
 
-      scope.where(clauses.join(" OR "), pattern: pattern, id: id.to_i)
+      conditions = SEARCH_COLUMNS.map { |column| arel_table[column].matches(pattern) }
+      conditions << arel_table[:id].in(voted_item_ids.arel)
+      id = term.delete_prefix("#")
+      conditions << arel_table[:id].eq(id.to_i) if id.match?(/\A\d{1,18}\z/)
+
+      scope.where(conditions.reduce(:or))
     end
   end
 
