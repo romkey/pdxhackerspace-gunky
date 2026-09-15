@@ -40,6 +40,27 @@ class Item < ApplicationRecord
         .where.not(id: Vote.mine.where(picked_up_at: nil).select(:item_id))
   }
 
+  SEARCH_COLUMNS = %w[description ai_description location claimed_by cancellation_reason].freeze
+
+  # Every whitespace-separated term must match somewhere: an item text column or
+  # a voter's Slack name. A bare number (optionally "#42") also matches the id.
+  def self.search(query)
+    terms = query.to_s.split
+    return all if terms.empty?
+
+    terms.reduce(all) do |scope, term|
+      pattern = "%#{sanitize_sql_like(term)}%"
+      voted_item_ids = Vote.where(Vote.arel_table[:slack_username].matches(pattern)).select(:item_id)
+
+      conditions = SEARCH_COLUMNS.map { |column| arel_table[column].matches(pattern) }
+      conditions << arel_table[:id].in(voted_item_ids.arel)
+      id = term.delete_prefix("#")
+      conditions << arel_table[:id].eq(id.to_i) if id.match?(/\A\d{1,18}\z/)
+
+      scope.where(conditions.reduce(:or))
+    end
+  end
+
   def self.gunky_stats
     {
       total: gunky_completed.count,
