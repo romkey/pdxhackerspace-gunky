@@ -44,7 +44,7 @@ gem "sentry-sidekiq", "~> 7.0"
 gem "slack-ruby-client"
 gem "pagy"
 # json 3.x changed JSON.parse arity and breaks ActiveSupport::JSON.decode in Rails 8.1.3.1
-gem "json", "< 3"
+gem "json", "< 4"
 gem "dotenv-rails", groups: [ :development, :test ]
 
 group :development, :test do
