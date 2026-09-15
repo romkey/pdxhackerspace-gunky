@@ -1,5 +1,6 @@
 class ItemsController < ApplicationController
   include Pagy::Method
+  include ExpiredItemMessageRefresh
 
   before_action :set_item, only: [
     :show, :edit, :update, :destroy, :resolve, :describe, :dispose,
@@ -204,6 +205,7 @@ class ItemsController < ApplicationController
 
     winner.destroy!
     @item.resolve_from_votes!
+    refresh_expired_item_message(@item)
 
     redirect_back fallback_location: items_path, notice: "Removed #{winner.slack_username} from Mine winners."
   end
@@ -217,6 +219,7 @@ class ItemsController < ApplicationController
 
     winner.update!(picked_up_at: Time.current)
     @item.update!(disposition: :mine, claimed_by: winner.slack_username)
+    refresh_expired_item_message(@item)
     redirect_back fallback_location: items_path, notice: "Marked #{winner.slack_username} as picked up."
   end
 

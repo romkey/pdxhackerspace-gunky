@@ -1,4 +1,6 @@
 class SlackInteractionsController < ApplicationController
+  include ExpiredItemMessageRefresh
+
   skip_before_action :verify_authenticity_token
   before_action :verify_slack_signature
 
@@ -166,19 +168,6 @@ class SlackInteractionsController < ApplicationController
   # action is only honoured while the winner still has an outstanding pickup.
   def pending_pickup_vote(item, slack_user_id)
     item.votes.find_by(slack_user_id: slack_user_id, choice: :mine, picked_up_at: nil)
-  end
-
-  # Rewrites the completed-item message so the buttons and text match the new
-  # state. Failures here must not fail the interaction: Slack shows the user an
-  # error banner for any non-2xx response.
-  def refresh_expired_item_message(item)
-    return unless item.posted_to_slack?
-
-    SlackService.new.update_expired_item_message(item)
-  rescue => e
-    Rails.logger.error(
-      "Failed to refresh expired Slack message for item #{item.id}: #{e.class}: #{e.message}"
-    )
   end
 
   def resolve_slack_name(user)

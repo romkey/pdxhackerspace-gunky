@@ -773,17 +773,89 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     item.votes.create!(slack_user_id: "U222", slack_username: "bob", choice: :foster)
 
     repost_called = false
+    refreshed = []
     original = SlackService.instance_method(:replace_expired_item_message)
+    original_update = SlackService.instance_method(:update_expired_item_message)
     SlackService.define_method(:replace_expired_item_message) { |_| repost_called = true }
+    SlackService.define_method(:update_expired_item_message) { |refreshed_item| refreshed << refreshed_item.id }
 
     post winner_forfeit_item_path(item), params: { slack_user_id: "U111" }
 
     assert_redirected_to items_path
     assert_not repost_called
+    assert_equal [ item.id ], refreshed
     assert_nil item.votes.find_by(slack_user_id: "U111", choice: :mine)
     assert item.reload.foster?
   ensure
     SlackService.define_method(:replace_expired_item_message, original)
+    SlackService.define_method(:update_expired_item_message, original_update)
+  end
+
+  test "winner_picked_up refreshes the expired Slack message in place" do
+    item = Item.create!(
+      description: "Lamp",
+      disposition: :mine,
+      claimed_by: "alice",
+      expiration_date: Date.current - 1.day,
+      slack_channel_id: "C123",
+      slack_message_ts: "111.222"
+    )
+    item.votes.create!(slack_user_id: "U111", slack_username: "alice", choice: :mine)
+    item.votes.create!(slack_user_id: "U222", slack_username: "bob", choice: :mine)
+
+    refreshed = []
+    original_update = SlackService.instance_method(:update_expired_item_message)
+    SlackService.define_method(:update_expired_item_message) { |refreshed_item| refreshed << refreshed_item.id }
+
+    post winner_picked_up_item_path(item), params: { slack_user_id: "U111" }
+
+    assert_redirected_to items_path
+    assert_equal [ item.id ], refreshed
+  ensure
+    SlackService.define_method(:update_expired_item_message, original_update)
+  end
+
+  test "winner actions skip the Slack refresh for items never posted to Slack" do
+    item = Item.create!(
+      description: "Unposted crate",
+      disposition: :mine,
+      claimed_by: "alice",
+      expiration_date: Date.current - 1.day
+    )
+    item.votes.create!(slack_user_id: "U111", slack_username: "alice", choice: :mine)
+
+    refreshed = []
+    original_update = SlackService.instance_method(:update_expired_item_message)
+    SlackService.define_method(:update_expired_item_message) { |refreshed_item| refreshed << refreshed_item.id }
+
+    post winner_picked_up_item_path(item), params: { slack_user_id: "U111" }
+
+    assert_redirected_to items_path
+    assert_empty refreshed
+  ensure
+    SlackService.define_method(:update_expired_item_message, original_update)
+  end
+
+  test "winner_picked_up still succeeds when the Slack refresh fails" do
+    item = Item.create!(
+      description: "Kettle",
+      disposition: :mine,
+      claimed_by: "alice",
+      expiration_date: Date.current - 1.day,
+      slack_channel_id: "C123",
+      slack_message_ts: "111.222"
+    )
+    winner = item.votes.create!(slack_user_id: "U111", slack_username: "alice", choice: :mine)
+
+    original_update = SlackService.instance_method(:update_expired_item_message)
+    SlackService.define_method(:update_expired_item_message) { |_| raise "slack is down" }
+
+    post winner_picked_up_item_path(item), params: { slack_user_id: "U111" }
+
+    assert_redirected_to items_path
+    assert winner.reload.picked_up_at.present?
+  ensure
+    SlackService.define_method(:update_expired_item_message, original_update)
   end
 
   test "winner_forfeit promotes next mine winner when available" do
