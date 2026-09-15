@@ -8,7 +8,8 @@ class ItemsController < ApplicationController
   ]
 
   def index
-    items = filtered_items.order(created_at: :desc)
+    @query = params[:q].to_s.strip
+    items = filtered_items.search(@query).order(created_at: :desc)
     @stats = Item.gunky_stats
     @pagy, @items = pagy(:offset, items)
   end

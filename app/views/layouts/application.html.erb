@@ -63,6 +63,15 @@
               </ul>
             </li>
           </ul>
+          <%= form_with url: items_path, method: :get, class: "d-flex my-2 my-lg-0", html: { role: "search" } do %>
+            <div class="input-group">
+              <%= search_field_tag :q, params[:q],
+                    class: "form-control",
+                    placeholder: "Search items",
+                    "aria-label": "Search items" %>
+              <button class="btn btn-outline-secondary" type="submit">Search</button>
+            </div>
+          <% end %>
         </div>
       </div>
     </nav>

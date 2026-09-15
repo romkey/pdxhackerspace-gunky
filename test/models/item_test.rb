@@ -302,4 +302,42 @@ class ItemTest < ActiveSupport::TestCase
       item.destroy
     end
   end
+  test "search with blank query returns everything" do
+    assert_equal Item.count, Item.search("  ").count
+  end
+
+  test "search matches description case-insensitively" do
+    assert_includes Item.search("PRINTER"), items(:pending_item)
+    assert_not_includes Item.search("PRINTER"), items(:claimed_item)
+  end
+
+  test "search matches location, owner, cancellation reason and ai description" do
+    items(:fostered_item).update!(ai_description: "A hot iron with a stand")
+
+    assert_includes Item.search("tool wall"), items(:owned_item)
+    assert_includes Item.search("pat"), items(:owned_item)
+    assert_includes Item.search("already have"), items(:cancelled_item)
+    assert_includes Item.search("hot iron"), items(:fostered_item)
+  end
+
+  test "search matches voter slack usernames" do
+    assert_includes Item.search("bob"), items(:pending_item)
+  end
+
+  test "search requires every term to match" do
+    assert_includes Item.search("old shelf"), items(:pending_item)
+    assert_empty Item.search("old stapler")
+  end
+
+  test "search matches item id" do
+    item = items(:killed_item)
+
+    assert_includes Item.search(item.id.to_s), item
+    assert_includes Item.search("##{item.id}"), item
+  end
+
+  test "search treats LIKE wildcards literally" do
+    assert_empty Item.search("%")
+    assert_empty Item.search("_")
+  end
 end

@@ -42,6 +42,39 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".alert", text: /#{stats[:cancelled]}.*cancelled/m
   end
 
+  test "navbar has a search box" do
+    get items_path
+
+    assert_select "form[role='search'][action='#{items_path}'][method='get'] input[type='search'][name='q']"
+  end
+
+  test "index searches items" do
+    get items_path(q: "stapler")
+
+    assert_response :success
+    assert_select "h5.card-title", count: 1
+    assert_select "h5.card-title", text: /Duplicate stapler/
+    assert_select "input[name='q'][value='stapler']"
+    assert_select "a", text: "Clear search"
+  end
+
+  test "index search combines with disposition filter and keeps query on tabs" do
+    get items_path(q: "e", disposition: "kill")
+
+    assert_response :success
+    assert_select "h5.card-title", text: /Broken monitor/
+    assert_select "h5.card-title", text: /Old printer/, count: 0
+    assert_select "a.nav-link[href='#{items_path(disposition: 'pending', q: 'e')}']", text: "Pending"
+  end
+
+  test "index search with no matches shows empty state" do
+    get items_path(q: "zzznothing")
+
+    assert_response :success
+    assert_select "h4", text: "No items found"
+    assert_select "p", text: /Nothing matches/
+  end
+
   test "index filters owned items" do
     get items_path(disposition: "owned")
 
