@@ -20,6 +20,27 @@ RUN apt-get update -qq && \
     ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
+# Diagnostic tools for troubleshooting a running container: DNS (host, dig, nslookup),
+# reachability (ping, traceroute, nc), sockets/processes (ip, ss, netstat, ps, lsof, strace),
+# and Redis (redis-cli; psql comes from postgresql-client above).
+RUN apt-get update -qq && \
+    apt-get install --no-install-recommends -y \
+      bind9-dnsutils \
+      bind9-host \
+      iproute2 \
+      iputils-ping \
+      jq \
+      less \
+      lsof \
+      net-tools \
+      netcat-openbsd \
+      procps \
+      redis-tools \
+      strace \
+      traceroute \
+      vim-tiny && \
+    rm -rf /var/lib/apt/lists /var/cache/apt/archives
+
 # Set production environment variables and enable jemalloc for reduced memory usage and latency.
 ENV RAILS_ENV="production" \
     BUNDLE_DEPLOYMENT="1" \
