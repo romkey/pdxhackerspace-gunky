@@ -44,6 +44,25 @@ The app will be available at http://localhost:3000.
 
 Under **Settings → Thermal printer**, set the **CUPS printer queue** name from `lpstat -p` or `lpstat -a`. Item receipts are built as a PDF and submitted with the system **`lp -d`** command (the Docker image includes `cups-client`). If the app runs in a container, point it at your CUPS server with **`CUPS_SERVER`** (see `.env.example`).
 
+### Troubleshooting inside the container
+
+The app image ships with diagnostic tools so you can debug a running container without installing anything:
+
+```bash
+docker compose exec web bash          # or: docker exec -it <container> bash
+```
+
+| Problem | Tools |
+| --- | --- |
+| Name resolution | `host`, `dig`, `nslookup` |
+| Reachability of `db`, `redis`, Slack, CUPS | `ping`, `traceroute`, `nc -vz redis 6379`, `curl -v`, `openssl s_client` |
+| Listening sockets and connections | `ss -tulpn`, `netstat -tulpn`, `ip addr`, `ip route` |
+| Processes, memory, open files | `ps aux`, `top`, `free -m`, `lsof`, `strace -p <pid>` |
+| Databases and queues | `psql "$DATABASE_URL"`, `redis-cli -u "$REDIS_URL" ping` |
+| Reading things | `less`, `vi`, `jq` |
+
+`strace` needs `--cap-add=SYS_PTRACE` to attach to processes it did not start.
+
 ### Slack Setup
 
 1. Create a new Slack app at https://api.slack.com/apps

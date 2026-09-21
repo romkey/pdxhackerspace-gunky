@@ -10,6 +10,7 @@ alwaysApply: false
 
 - **Base image:** `ruby:3.3.11-slim` with multi-stage build
 - **CUPS client:** `cups-client` in the base image so `lp(1)` is available for receipt printing
+- **Diagnostics:** the base image installs troubleshooting tools (`bind9-host`/`bind9-dnsutils`, `iputils-ping`, `traceroute`, `netcat-openbsd`, `iproute2`, `net-tools`, `procps`, `lsof`, `strace`, `redis-tools`, `jq`, `less`, `vim-tiny`) in a separate layer from the runtime packages
 - **Node:** Installed via nodenv (Node 24.x) for asset compilation
 - **Yarn:** Use `yarn install --frozen-lockfile` — never modify `yarn.lock` in Docker builds
 - **Assets:** Precompiled with `SECRET_KEY_BASE_DUMMY=1`
