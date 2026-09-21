@@ -76,6 +76,37 @@ class PromoteLostFoundItemsJobTest < ActiveJob::TestCase
     SlackService.define_method(:update_lost_found_item_message, original_update)
   end
 
+  test "gunky slack poll uses the new giveaway expiration before promotion is saved" do
+    item = Item.create!(
+      description: "Expiration in slack poll",
+      lost_found_state: :lost_found_unclaimed,
+      lost_found_hold_until: 1.day.ago.to_date,
+      expiration_date: 1.day.ago.to_date
+    )
+
+    posted_expiration = nil
+    posted_while_unclaimed = nil
+    original_post = SlackService.instance_method(:chat_post_item)
+    original_update = SlackService.instance_method(:update_lost_found_item_message)
+    SlackService.define_method(:chat_post_item) do |i|
+      posted_expiration = i.expiration_date
+      posted_while_unclaimed = i.lost_found_unclaimed?
+      { "ts" => "3.3", "channel" => "C1" }
+    end
+    SlackService.define_method(:update_lost_found_item_message) { |_| nil }
+
+    ENV["SLACK_BOT_TOKEN"] = "xoxb-test"
+    PromoteLostFoundItemsJob.new.send(:promote_item!, item)
+    ENV.delete("SLACK_BOT_TOKEN")
+
+    assert_equal Item.gunky_poll_expiration_date, posted_expiration
+    assert posted_while_unclaimed, "Gunky poll should post before promotion is persisted"
+    assert item.reload.lost_found_promoted?
+  ensure
+    SlackService.define_method(:chat_post_item, original_post)
+    SlackService.define_method(:update_lost_found_item_message, original_update)
+  end
+
   test "updates lost+found slack message only after gunky post and promotion succeed" do
     item = Item.create!(
       description: "Promotion order test",

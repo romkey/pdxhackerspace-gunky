@@ -48,6 +48,7 @@ class PromoteLostFoundItemsJob < ApplicationJob
   def post_gunky_poll(slack, item)
     return nil unless ENV["SLACK_BOT_TOKEN"].present?
 
+    item.assign_attributes(expiration_date: Item.gunky_poll_expiration_date)
     slack.chat_post_item(item)
   end
 

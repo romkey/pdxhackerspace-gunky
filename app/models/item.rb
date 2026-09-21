@@ -177,11 +177,15 @@ class Item < ApplicationRecord
     )
   end
 
+  def self.gunky_poll_expiration_date
+    7.days.from_now.to_date
+  end
+
   def promote_from_lost_found!
     update!(
       lost_found_state: :lost_found_promoted,
       lost_found_promoted_at: Time.current,
-      expiration_date: 7.days.from_now.to_date
+      expiration_date: self.class.gunky_poll_expiration_date
     )
   end
 
