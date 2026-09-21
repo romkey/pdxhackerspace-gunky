@@ -13,6 +13,18 @@ class PostToSlackJobTest < ActiveJob::TestCase
     load Rails.root.join("app/services/slack_service.rb")
   end
 
+  test "posts in-phase lost+found items to lost+found slack channel" do
+    item = items(:lost_found_unclaimed_item)
+    called_with = nil
+
+    SlackService.define_method(:post_lost_found_item) { |i| called_with = i }
+    PostToSlackJob.perform_now(item.id)
+    assert_equal item, called_with
+  ensure
+    SlackService.remove_method(:post_lost_found_item) if SlackService.method_defined?(:post_lost_found_item)
+    load Rails.root.join("app/services/slack_service.rb")
+  end
+
   test "does nothing when item does not exist" do
     assert_nothing_raised do
       PostToSlackJob.perform_now(0)

@@ -1,0 +1,155 @@
+<div class="col">
+  <div class="card h-100">
+    <% if item.photo.attached? %>
+      <%= image_tag item.photo.variant(resize_to_fill: [400, 300]), class: "card-img-top", alt: item.display_description.truncate(50) %>
+    <% else %>
+      <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center" style="height: 200px;">
+        <span class="text-white-50 fs-4">No photo</span>
+      </div>
+    <% end %>
+    <div class="card-body">
+      <h5 class="card-title"><%= link_to item.display_description.truncate(60), item, class: "text-decoration-none" %></h5>
+      <p class="card-text text-muted mb-1">
+        <small><%= item.location.presence || "No location" %></small>
+      </p>
+
+      <% if lost_found_site? %>
+        <span class="badge <%= lost_found_state_badge_class(item) %>"><%= lost_found_state_label(item) %></span>
+        <% if item.lost_found_pickup_overdue? %>
+          <span class="badge bg-danger">Pickup overdue</span>
+        <% end %>
+        <% if item.lost_found_claimed_by.present? %>
+          <p class="mt-2 mb-0 text-muted">
+            <small>Claimed by <%= item.lost_found_claimed_by %></small>
+          </p>
+        <% end %>
+        <% if item.lost_found_unclaimed? %>
+          <p class="mt-2 mb-0 text-muted"><small><%= lost_found_hold_line(item) %></small></p>
+          <div class="mt-2">
+            <%= form_with url: lost_found_claim_item_path(item), method: :post, class: "d-flex flex-wrap gap-2 align-items-center" do |f| %>
+              <%= f.text_field :claimed_by, class: "form-control form-control-sm", placeholder: "Owner name", required: true, style: "max-width: 10rem;" %>
+              <%= f.submit "This is mine", class: "btn btn-outline-primary btn-sm" %>
+            <% end %>
+          </div>
+        <% elsif item.lost_found_claimed? %>
+          <p class="mt-2 mb-0 small <%= item.lost_found_pickup_overdue? ? "text-danger" : "text-muted" %>">
+            <%= lost_found_pickup_deadline_line(item) %>
+          </p>
+          <div class="mt-2 d-flex flex-wrap gap-2">
+            <%= button_to "Picked up", lost_found_picked_up_item_path(item), method: :post, class: "btn btn-outline-success btn-sm" %>
+            <%= button_to "Release claim", lost_found_release_item_path(item), method: :post, class: "btn btn-outline-warning btn-sm", form: { data: { turbo_confirm: "Release this claim?" } } %>
+          </div>
+        <% end %>
+        <% if item.lost_found_unclaimed? || item.lost_found_claimed? %>
+          <div class="mt-2">
+            <%= button_to "Promote to Gunky", lost_found_promote_item_path(item), method: :post, class: "btn btn-outline-secondary btn-sm", form: { data: { turbo_confirm: "Promote this item to a Gunky giveaway now?" } } %>
+          </div>
+        <% end %>
+      <% else %>
+        <span class="badge <%= disposition_badge_class(item.disposition) %>"><%= item_disposition_label(item) %></span>
+        <% if item.was_lost_found? %>
+          <span class="badge bg-info text-dark">Was lost+found</span>
+        <% end %>
+        <%= pickup_status_badge(item) %>
+        <% if pickup_overdue?(item) %>
+          <span class="badge bg-danger">Pickup overdue</span>
+        <% end %>
+        <% if item.pending? %>
+          <span class="text-muted ms-1"><small><%= pending_vote_counts_line(item) %></small></span>
+        <% end %>
+        <% if item.expired? && item.pending? %>
+          <span class="badge bg-warning text-dark">Expired</span>
+        <% end %>
+        <% if item.owned? %>
+          <p class="mt-2 mb-0 text-muted">
+            <small>Owned by <%= item.claimed_by %></small>
+          </p>
+          <div class="mt-2">
+            <%= button_to "Disown",
+                  disown_item_path(item),
+                  method: :post,
+                  class: "btn btn-outline-warning btn-sm",
+                  form: { data: { turbo_confirm: "Reopen this giveaway and remove the owner claim?" } } %>
+          </div>
+        <% end %>
+
+        <% if item.giveaway_cancelled? && item.normalized_cancellation_reason.present? %>
+          <p class="mt-2 mb-0 text-muted">
+            <small>Cancelled: <%= item.normalized_cancellation_reason %></small>
+          </p>
+        <% end %>
+
+        <% if item.pending? %>
+          <div class="mt-3 d-flex flex-wrap gap-2 align-items-start">
+            <%= form_with url: cancel_giveaway_item_path(item), method: :post, class: "d-flex flex-wrap gap-2 align-items-center" do |f| %>
+              <%= f.text_field :cancellation_reason, class: "form-control form-control-sm", placeholder: "Reason (optional)", style: "max-width: 12rem;" %>
+              <%= f.submit "Cancel", class: "btn btn-outline-secondary btn-sm", data: { turbo_confirm: "Cancel this giveaway?" } %>
+            <% end %>
+            <%= form_with url: claim_ownership_item_path(item), method: :post, class: "d-flex flex-wrap gap-2 align-items-center" do |f| %>
+              <%= f.text_field :claimed_by, class: "form-control form-control-sm", placeholder: "Owner name", required: true, style: "max-width: 10rem;" %>
+              <%= f.submit "I Own This", class: "btn btn-outline-dark btn-sm" %>
+            <% end %>
+          </div>
+        <% end %>
+
+        <% if item.mine? %>
+          <% collected = item.mine_voters_picked_up %>
+          <% outstanding = item.mine_voters_pending_pickup %>
+
+          <% if collected.any? %>
+            <div class="mt-3">
+              <h6 class="mb-2">Collected</h6>
+              <% collected.each do |winner| %>
+                <div class="d-flex justify-content-between align-items-center gap-2 small text-muted border-bottom py-1">
+                  <span>&check; <%= winner[:slack_username] %></span>
+                  <span><%= format_pickup_date(winner[:picked_up_at]) %></span>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+
+          <% if outstanding.any? %>
+            <div class="mt-3">
+              <h6 class="mb-1">Awaiting pickup</h6>
+              <p class="small <%= pickup_overdue?(item) ? "text-danger" : "text-muted" %> mb-2">
+                <%= pickup_deadline_line(item) %>
+              </p>
+              <% outstanding.each do |winner| %>
+                <div class="border rounded p-2 mb-2">
+                  <div class="fw-semibold"><%= winner[:slack_username] %></div>
+                  <div class="small text-muted mb-2">Claimed <%= format_pickup_date(winner[:claimed_at]) %></div>
+                  <div class="d-flex gap-2">
+                    <%= button_to "Forfeit",
+                      winner_forfeit_item_path(item, slack_user_id: winner[:slack_user_id]),
+                      method: :post,
+                      class: "btn btn-outline-danger btn-sm",
+                      form: { data: { turbo_confirm: "Remove #{winner[:slack_username]} from Want winners?" } } %>
+                    <%= button_to "Picked up",
+                      winner_picked_up_item_path(item, slack_user_id: winner[:slack_user_id]),
+                      method: :post,
+                      class: "btn btn-outline-success btn-sm" %>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        <% end %>
+      <% end %>
+    </div>
+    <div class="card-footer text-muted">
+      <% if lost_found_site? %>
+        <% if item.lost_found_hold_until.present? && item.lost_found_unclaimed? %>
+          <small><%= lost_found_hold_line(item) %></small>
+        <% elsif item.lost_found_pickup_deadline.present? && item.lost_found_claimed? %>
+          <small><%= lost_found_pickup_deadline_line(item) %></small>
+        <% elsif item.lost_found_picked_up_at.present? %>
+          <small>Picked up <%= format_pickup_date(item.lost_found_picked_up_at) %></small>
+        <% elsif item.lost_found_promoted_at.present? %>
+          <small>Promoted <%= format_pickup_date(item.lost_found_promoted_at) %></small>
+        <% end %>
+      <% else %>
+        <small>Expires: <%= item.expiration_date&.strftime("%b %d, %Y") || "N/A" %></small>
+      <% end %>
+    </div>
+  </div>
+</div>

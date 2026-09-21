@@ -1,0 +1,3 @@
+default:
+  hold_days: 14
+  pickup_days: 7

@@ -69,6 +69,16 @@ class ExpireItemsJobTest < ActiveJob::TestCase
     SlackService.define_method(:replace_expired_item_message, original_method)
   end
 
+  test "does not auto-kill in-phase lost+found items" do
+    item = items(:lost_found_unclaimed_item)
+    item.update!(expiration_date: 1.day.ago.to_date)
+
+    ExpireItemsJob.perform_now
+
+    assert item.reload.lost_found_unclaimed?
+    assert item.pending?
+  end
+
   test "continues processing when one item fails" do
     second = Item.create!(description: "Also expired", expiration_date: 2.days.ago, disposition: :pending)
 

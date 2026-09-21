@@ -1,40 +1,25 @@
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-  <h1 class="mb-0">Items</h1>
+  <h1 class="mb-0">Lost+Found</h1>
   <div class="d-flex flex-wrap gap-2">
-    <%= button_to "Print all completed",
-          print_completed_items_path,
-          method: :post,
-          class: "btn btn-outline-secondary",
-          form_class: "d-inline" %>
-    <%= link_to "Print all completed (browser)",
-          print_completed_browser_items_path,
-          class: "btn btn-outline-secondary",
-          target: "_blank",
-          rel: "noopener",
-          data: { turbo: false } %>
     <%= link_to "New Item", new_item_path, class: "btn btn-primary" %>
   </div>
 </div>
 
 <div class="alert alert-light border mb-4" role="status">
-  <div class="fw-semibold mb-2">Gunky stats</div>
+  <div class="fw-semibold mb-2">Lost+Found stats</div>
   <div class="d-flex flex-wrap gap-3">
-    <span><strong><%= @stats[:total] %></strong> total gunky'd</span>
-    <span><strong><%= @stats[:new_homes] %></strong> new homes</span>
-    <span><strong><%= @stats[:picked_up] %></strong> picked up</span>
+    <span><strong><%= @stats[:unclaimed] %></strong> unclaimed</span>
     <span><strong><%= @stats[:awaiting_pickup] %></strong> awaiting pickup</span>
-    <span><strong><%= @stats[:kept_for_space] %></strong> kept for space</span>
-    <span><strong><%= @stats[:trashed] %></strong> trashed</span>
-    <span><strong><%= @stats[:owners_found] %></strong> owners found</span>
-    <span><strong><%= @stats[:cancelled] %></strong> cancelled</span>
+    <span><strong><%= @stats[:picked_up] %></strong> picked up</span>
+    <span><strong><%= @stats[:promoted] %></strong> promoted to Gunky</span>
   </div>
 </div>
 
 <ul class="nav nav-pills mb-4">
   <li class="nav-item">
-    <%= link_to "All", items_path(q: @query.presence), class: "nav-link #{params[:disposition].blank? ? 'active' : ''}" %>
+    <%= link_to "Active", items_path(q: @query.presence), class: "nav-link #{params[:disposition].blank? ? 'active' : ''}" %>
   </li>
-  <% index_filter_tabs.each do |label, filter| %>
+  <% lost_found_filter_tabs.each do |label, filter| %>
     <li class="nav-item">
       <%= link_to label, items_path(disposition: filter, q: @query.presence), class: "nav-link #{index_tab_active?(filter) ? 'active' : ''}" %>
     </li>

@@ -53,3 +53,63 @@ cancelled_item:
   expiration_date: <%= 4.days.ago.to_date %>
   disposition: 4
   cancellation_reason: Already have two
+
+lost_found_unclaimed_item:
+  description: Mystery backpack
+  location: Front lobby
+  expiration_date: <%= 10.days.from_now.to_date %>
+  disposition: 0
+  lost_found_state: 1
+  lost_found_hold_until: <%= 10.days.from_now.to_date %>
+  lost_found_slack_message_ts: "2222222222.222222"
+  lost_found_slack_channel_id: "C0987654321"
+
+lost_found_claimed_item:
+  description: USB-C cable bundle
+  location: Lost shelf
+  expiration_date: <%= 5.days.from_now.to_date %>
+  disposition: 0
+  lost_found_state: 2
+  lost_found_hold_until: <%= 5.days.from_now.to_date %>
+  lost_found_pickup_deadline: <%= 5.days.from_now.to_date %>
+  lost_found_claimed_by: alice
+  lost_found_claimed_by_slack_user_id: U001
+  lost_found_claimed_at: <%= 1.day.ago %>
+  lost_found_slack_message_ts: "3333333333.333333"
+  lost_found_slack_channel_id: "C0987654321"
+
+lost_found_claimed_overdue_item:
+  description: Leftover lunch container
+  location: Kitchen
+  expiration_date: <%= 2.days.ago.to_date %>
+  disposition: 0
+  lost_found_state: 2
+  lost_found_hold_until: <%= 10.days.ago.to_date %>
+  lost_found_pickup_deadline: <%= 1.day.ago.to_date %>
+  lost_found_claimed_by: bob
+  lost_found_claimed_by_slack_user_id: U002
+  lost_found_claimed_at: <%= 10.days.ago %>
+  lost_found_slack_message_ts: "4444444444.444444"
+  lost_found_slack_channel_id: "C0987654321"
+
+lost_found_picked_up_item:
+  description: House keys on lanyard
+  location: Reception
+  expiration_date: <%= 3.days.ago.to_date %>
+  disposition: 0
+  lost_found_state: 3
+  lost_found_hold_until: <%= 10.days.ago.to_date %>
+  lost_found_pickup_deadline: <%= 5.days.ago.to_date %>
+  lost_found_claimed_by: carol
+  lost_found_claimed_by_slack_user_id: U003
+  lost_found_claimed_at: <%= 8.days.ago %>
+  lost_found_picked_up_at: <%= 2.days.ago %>
+
+lost_found_promoted_item:
+  description: Old soldering iron
+  location: Workshop
+  expiration_date: <%= 7.days.from_now.to_date %>
+  disposition: 0
+  lost_found_state: 4
+  lost_found_hold_until: <%= 14.days.ago.to_date %>
+  lost_found_promoted_at: <%= 1.day.ago %>

@@ -66,11 +66,23 @@
     <%= f.text_area :description, class: "form-control", rows: 3, placeholder: "What is this item? Leave blank and the AI agent will describe it from the photo.", data: { photo_ai_target: "description" } %>
   </div>
 
-  <div class="mb-3">
-    <%= f.label :expiration_date, class: "form-label" %>
-    <%= f.date_field :expiration_date, class: "form-control", value: item.expiration_date || 7.days.from_now.to_date %>
-    <div class="form-text">When the poll expires. Defaults to 1 week from today.</div>
-  </div>
+  <% if lost_found_site? %>
+    <div class="mb-3">
+      <div class="form-label">Hold period</div>
+      <p class="form-control-plaintext mb-0">
+        This item stays in lost+found until <strong><%= (@lost_found_hold_until || LostFoundSetting.instance.hold_days.days.from_now.to_date).strftime("%B %d, %Y") %></strong>.
+      </p>
+      <div class="form-text">
+        If unclaimed by then, it is promoted to a Gunky giveaway. Configure the hold period in Settings → Lost+Found.
+      </div>
+    </div>
+  <% else %>
+    <div class="mb-3">
+      <%= f.label :expiration_date, class: "form-label" %>
+      <%= f.date_field :expiration_date, class: "form-control", value: item.expiration_date || 7.days.from_now.to_date %>
+      <div class="form-text">When the poll expires. Defaults to 1 week from today.</div>
+    </div>
+  <% end %>
 
   <div class="mb-3 d-none" data-photo-ai-target="quickCreateWrapper">
     <button type="submit" name="create_and_add_another" value="1" class="btn btn-success w-100" data-photo-ai-target="submit">
