@@ -537,12 +537,18 @@ class SlackService
     end
   end
 
+  def lost_found_claimer_mention(item)
+    user_id = item.lost_found_claimed_by_slack_user_id
+    return item.lost_found_claimed_by if user_id.blank?
+
+    "<@#{user_id}>"
+  end
+
   def lost_found_context_text(item)
     if item.lost_found_unclaimed? && item.lost_found_hold_until.present?
       "Becomes a Gunky giveaway after #{item.lost_found_hold_until.strftime('%b %d, %Y')} if unclaimed."
     elsif item.lost_found_claimed? && item.lost_found_pickup_deadline.present?
-      user_id = item.lost_found_claimed_by_slack_user_id
-      mention = user_id.present? ? "<@#{user_id}>" : item.lost_found_claimed_by
+      mention = lost_found_claimer_mention(item)
       ":white_check_mark: Claimed by #{mention}. Pick this up by " \
         "#{item.lost_found_pickup_deadline.strftime('%b %d, %Y')} or it goes to Gunky."
     elsif item.lost_found_picked_up?

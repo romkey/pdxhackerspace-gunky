@@ -28,8 +28,10 @@ class PromoteLostFoundItemsJob < ApplicationJob
   private
 
   def promote_item!(item)
-    item.promote_from_lost_found!
-    SlackService.new.update_lost_found_item_message(item)
-    SlackService.new.post_item(item) if ENV["SLACK_BOT_TOKEN"].present?
+    ActiveRecord::Base.transaction do
+      item.promote_from_lost_found!
+      SlackService.new.update_lost_found_item_message(item)
+      SlackService.new.post_item(item) if ENV["SLACK_BOT_TOKEN"].present?
+    end
   end
 end

@@ -309,7 +309,7 @@ class ItemsController < ApplicationController
       return
     end
 
-    claim_lost_found_item!(@item, name: claimed_by, slack_user_id: params[:slack_user_id].to_s.presence || "web")
+    claim_lost_found_item!(@item, name: claimed_by, slack_user_id: params[:slack_user_id].to_s.presence)
     redirect_back fallback_location: item_path(@item), notice: "Marked as claimed by #{claimed_by}."
   end
 

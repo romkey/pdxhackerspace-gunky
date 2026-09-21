@@ -20,6 +20,14 @@ class SiteTest < ActiveSupport::TestCase
     assert_equal Site::GUNKY, Site.for_host("")
   end
 
+  test "for_request matches lost+found host when URL includes a port" do
+    ENV["LOST_FOUND_URL"] = "http://lostfound.localhost:3000"
+
+    assert_equal Site::LOST_FOUND, Site.for_request("lostfound.localhost", 3000)
+    assert_equal Site::GUNKY, Site.for_request("lostfound.localhost")
+    assert_equal "lostfound.localhost:3000", Site.request_host_key("lostfound.localhost", 3000)
+  end
+
   test "gunky_url and lost_found_url read from environment" do
     assert_equal "http://gunky.test", Site.gunky_url
     assert_equal "http://lostfound.test", Site.lost_found_url

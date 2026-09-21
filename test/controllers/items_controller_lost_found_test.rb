@@ -98,6 +98,7 @@ class ItemsControllerLostFoundTest < ActionDispatch::IntegrationTest
     item.reload
     assert item.lost_found_claimed?
     assert_equal "Pat Owner", item.lost_found_claimed_by
+    assert_nil item.lost_found_claimed_by_slack_user_id
   end
 
   test "lost_found_picked_up marks item picked up" do

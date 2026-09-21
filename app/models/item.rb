@@ -149,12 +149,12 @@ class Item < ApplicationRecord
     save! if persisted?
   end
 
-  def claim_lost_found!(name:, slack_user_id:, pickup_days:)
+  def claim_lost_found!(name:, slack_user_id: nil, pickup_days:)
     pickup_deadline = pickup_days.days.from_now.to_date
     update!(
       lost_found_state: :lost_found_claimed,
       lost_found_claimed_by: name,
-      lost_found_claimed_by_slack_user_id: slack_user_id,
+      lost_found_claimed_by_slack_user_id: slack_user_id.presence,
       lost_found_claimed_at: Time.current,
       lost_found_pickup_deadline: pickup_deadline
     )

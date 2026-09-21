@@ -31,6 +31,21 @@ class SlackServiceLostFoundTest < ActiveSupport::TestCase
     assert_equal "lost_found_claim", action_blocks.first[:elements].first[:action_id]
   end
 
+  test "build_lost_found_blocks omits pickup button for web-claimed item" do
+    item = items(:lost_found_claimed_item)
+    item.update!(lost_found_claimed_by_slack_user_id: nil)
+
+    service = SlackService.new
+    blocks = service.send(:build_lost_found_blocks, item)
+
+    action_blocks = blocks.select { |b| b[:type] == "actions" }
+    assert_empty action_blocks
+
+    context_text = blocks.find { |b| b[:type] == "context" }[:elements].first[:text]
+    assert_includes context_text, "Claimed by alice"
+    assert_not_includes context_text, "<@web>"
+  end
+
   test "build_lost_found_blocks includes pickup button for claimed item" do
     item = items(:lost_found_claimed_item)
     service = SlackService.new

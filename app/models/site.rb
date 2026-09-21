@@ -4,9 +4,23 @@ class Site
 
   class << self
     def for_host(host)
-      return LOST_FOUND if host.present? && host == lost_found_host
+      for_request(host)
+    end
+
+    def for_request(host, port = nil)
+      return LOST_FOUND if host.present? && request_host_key(host, port) == lost_found_host
 
       GUNKY
+    end
+
+    def request_host_key(host, port = nil)
+      host = host.to_s
+      return host if host.blank?
+
+      port_i = port.to_i
+      return host if port_i.zero? || [ 80, 443 ].include?(port_i)
+
+      "#{host}:#{port_i}"
     end
 
     def gunky_url

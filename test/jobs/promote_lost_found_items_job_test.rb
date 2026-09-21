@@ -49,6 +49,31 @@ class PromoteLostFoundItemsJobTest < ActiveJob::TestCase
     SlackService.define_method(:update_lost_found_item_message, original_update)
   end
 
+  test "does not persist promotion when gunky slack post fails" do
+    item = Item.create!(
+      description: "Slack failure should roll back",
+      lost_found_state: :lost_found_unclaimed,
+      lost_found_hold_until: 1.day.ago.to_date,
+      expiration_date: 1.day.ago.to_date
+    )
+
+    original_post = SlackService.instance_method(:post_item)
+    original_update = SlackService.instance_method(:update_lost_found_item_message)
+    SlackService.define_method(:post_item) { |_| raise "slack down" }
+    SlackService.define_method(:update_lost_found_item_message) { |_| nil }
+
+    ENV["SLACK_BOT_TOKEN"] = "xoxb-test"
+    PromoteLostFoundItemsJob.perform_now
+    ENV.delete("SLACK_BOT_TOKEN")
+
+    item.reload
+    assert item.lost_found_unclaimed?
+    assert_nil item.lost_found_promoted_at
+  ensure
+    SlackService.define_method(:post_item, original_post)
+    SlackService.define_method(:update_lost_found_item_message, original_update)
+  end
+
   test "does not promote picked up items" do
     item = items(:lost_found_picked_up_item)
 

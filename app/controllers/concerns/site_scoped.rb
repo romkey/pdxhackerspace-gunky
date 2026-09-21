@@ -8,7 +8,7 @@ module SiteScoped
   private
 
   def current_site
-    @current_site ||= Site.for_host(request.host)
+    @current_site ||= Site.for_request(request.host, request.port)
   end
 
   def lost_found_site?
