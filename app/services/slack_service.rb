@@ -4,6 +4,15 @@ class SlackService
   end
 
   def post_item(item)
+    response = chat_post_item(item)
+    item.update!(
+      slack_message_ts: response["ts"],
+      slack_channel_id: response["channel"]
+    )
+    response
+  end
+
+  def chat_post_item(item)
     summary_text = item.display_description.to_s
     blocks = build_item_blocks(item)
     payload = {
@@ -12,14 +21,7 @@ class SlackService
       blocks: blocks
     }
     log_payload("chat_postMessage", payload)
-    response = @client.chat_postMessage(**payload)
-
-    item.update!(
-      slack_message_ts: response["ts"],
-      slack_channel_id: response["channel"]
-    )
-
-    response
+    @client.chat_postMessage(**payload)
   end
 
   def update_item_message(item)
