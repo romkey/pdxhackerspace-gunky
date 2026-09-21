@@ -3,6 +3,13 @@ class Item < ApplicationRecord
   has_one_attached :photo
 
   enum :disposition, { pending: 0, mine: 1, foster: 2, kill: 3, cancelled: 4 }
+  enum :lost_found_state, {
+    not_lost_found: 0,
+    lost_found_unclaimed: 1,
+    lost_found_claimed: 2,
+    lost_found_picked_up: 3,
+    lost_found_promoted: 4
+  }
 
   validate :description_or_photo_present
 
@@ -12,35 +19,66 @@ class Item < ApplicationRecord
 
   before_create :set_default_expiration
 
+  scope :gunky_visible, -> {
+    where(lost_found_state: [ lost_found_states[:not_lost_found], lost_found_states[:lost_found_promoted] ])
+  }
+
+  scope :lost_found_visible, -> {
+    where(lost_found_state: [
+      lost_found_states[:lost_found_unclaimed],
+      lost_found_states[:lost_found_claimed],
+      lost_found_states[:lost_found_picked_up],
+      lost_found_states[:lost_found_promoted]
+    ])
+  }
+
+  scope :lost_found_active, -> {
+    where(lost_found_state: [
+      lost_found_states[:lost_found_unclaimed],
+      lost_found_states[:lost_found_claimed],
+      lost_found_states[:lost_found_picked_up]
+    ])
+  }
+
+  scope :lost_found_hold_elapsed, -> {
+    lost_found_unclaimed.where(lost_found_hold_until: ..Date.current)
+  }
+
+  scope :lost_found_pickup_elapsed, -> {
+    lost_found_claimed.where(lost_found_pickup_deadline: ..Date.current)
+  }
+
   scope :expired_without_votes, -> {
-    pending
+    gunky_visible.pending
       .where(expiration_date: ..Date.current)
       .left_joins(:votes)
       .where(votes: { id: nil })
   }
 
   scope :expired_with_votes, -> {
-    pending
+    gunky_visible.pending
       .where(expiration_date: ..Date.current)
       .joins(:votes)
       .distinct
   }
 
-  scope :killed_not_disposed, -> { kill.where(disposed_at: nil) }
-  scope :killed_disposed, -> { kill.where.not(disposed_at: nil) }
-  scope :owned, -> { cancelled.where.not(claimed_by: [ nil, "" ]) }
-  scope :giveaway_cancelled, -> { cancelled.where(claimed_by: [ nil, "" ]) }
-  scope :gunky_completed, -> { where.not(disposition: :pending) }
+  scope :killed_not_disposed, -> { gunky_visible.kill.where(disposed_at: nil) }
+  scope :killed_disposed, -> { gunky_visible.kill.where.not(disposed_at: nil) }
+  scope :owned, -> { gunky_visible.cancelled.where.not(claimed_by: [ nil, "" ]) }
+  scope :giveaway_cancelled, -> { gunky_visible.cancelled.where(claimed_by: [ nil, "" ]) }
+  scope :gunky_completed, -> { gunky_visible.where.not(disposition: :pending) }
 
   # A "mine" item is awaiting pickup while any winner still has an outstanding
   # vote, and picked up once every winner has collected.
-  scope :awaiting_pickup, -> { mine.where(id: Vote.mine.where(picked_up_at: nil).select(:item_id)) }
+  scope :awaiting_pickup, -> {
+    gunky_visible.mine.where(id: Vote.mine.where(picked_up_at: nil).select(:item_id))
+  }
   scope :picked_up, -> {
-    mine.where(id: Vote.mine.select(:item_id))
+    gunky_visible.mine.where(id: Vote.mine.select(:item_id))
         .where.not(id: Vote.mine.where(picked_up_at: nil).select(:item_id))
   }
 
-  SEARCH_COLUMNS = %w[description ai_description location claimed_by cancellation_reason].freeze
+  SEARCH_COLUMNS = %w[description ai_description location claimed_by cancellation_reason lost_found_claimed_by].freeze
 
   # Every whitespace-separated term must match somewhere: an item text column or
   # a voter's Slack name. A bare number (optionally "#42") also matches the id.
@@ -64,14 +102,87 @@ class Item < ApplicationRecord
   def self.gunky_stats
     {
       total: gunky_completed.count,
-      new_homes: mine.count,
+      new_homes: gunky_visible.mine.count,
       picked_up: picked_up.count,
       awaiting_pickup: awaiting_pickup.count,
-      kept_for_space: foster.count,
-      trashed: kill.count,
+      kept_for_space: gunky_visible.foster.count,
+      trashed: gunky_visible.kill.count,
       owners_found: owned.count,
       cancelled: giveaway_cancelled.count
     }
+  end
+
+  def self.lost_found_stats
+    {
+      unclaimed: lost_found_unclaimed.count,
+      awaiting_pickup: lost_found_claimed.count,
+      picked_up: lost_found_picked_up.count,
+      promoted: lost_found_promoted.count
+    }
+  end
+
+  def in_lost_found?
+    lost_found_unclaimed? || lost_found_claimed? || lost_found_picked_up?
+  end
+
+  def was_lost_found?
+    !not_lost_found?
+  end
+
+  def lost_found_pickup_overdue?
+    lost_found_claimed? &&
+      lost_found_pickup_deadline.present? &&
+      lost_found_pickup_deadline < Date.current
+  end
+
+  def posted_to_lost_found_slack?
+    lost_found_slack_message_ts.present?
+  end
+
+  def start_lost_found!(hold_days:)
+    hold_until = hold_days.days.from_now.to_date
+    assign_attributes(
+      lost_found_state: :lost_found_unclaimed,
+      lost_found_hold_until: hold_until,
+      expiration_date: hold_until
+    )
+    save! if persisted?
+  end
+
+  def claim_lost_found!(name:, slack_user_id:, pickup_days:)
+    pickup_deadline = pickup_days.days.from_now.to_date
+    update!(
+      lost_found_state: :lost_found_claimed,
+      lost_found_claimed_by: name,
+      lost_found_claimed_by_slack_user_id: slack_user_id,
+      lost_found_claimed_at: Time.current,
+      lost_found_pickup_deadline: pickup_deadline
+    )
+  end
+
+  def release_lost_found_claim!
+    update!(
+      lost_found_state: :lost_found_unclaimed,
+      lost_found_claimed_by: nil,
+      lost_found_claimed_by_slack_user_id: nil,
+      lost_found_claimed_at: nil,
+      lost_found_pickup_deadline: nil
+    )
+  end
+
+  def mark_lost_found_picked_up!
+    update!(
+      lost_found_state: :lost_found_picked_up,
+      lost_found_picked_up_at: Time.current
+    )
+  end
+
+  def promote_from_lost_found!
+    update!(
+      lost_found_state: :lost_found_promoted,
+      lost_found_promoted_at: Time.current,
+      expiration_date: 7.days.from_now.to_date
+    )
   end
 
   def owned?

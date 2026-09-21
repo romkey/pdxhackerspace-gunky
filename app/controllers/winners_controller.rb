@@ -1,6 +1,6 @@
 class WinnersController < ApplicationController
   def index
-    vote_scope = Vote.mine.where(picked_up_at: nil).joins(:item).where(items: { disposition: Item.dispositions[:mine] })
+    vote_scope = Vote.mine.where(picked_up_at: nil).joins(:item).merge(Item.gunky_visible.mine)
     votes = vote_scope.includes(:item).order(:slack_username, "items.id")
 
     grouped = votes.group_by(&:slack_user_id)

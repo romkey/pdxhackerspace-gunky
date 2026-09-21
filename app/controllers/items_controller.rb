@@ -1,18 +1,34 @@
 class ItemsController < ApplicationController
   include Pagy::Method
   include ExpiredItemMessageRefresh
+  include LostFoundActions
+
+  LOST_FOUND_FILTERS = {
+    "unclaimed" => :lost_found_unclaimed,
+    "claimed" => :lost_found_claimed,
+    "picked_up" => :lost_found_picked_up,
+    "promoted" => :lost_found_promoted
+  }.freeze
 
   before_action :set_item, only: [
     :show, :edit, :update, :destroy, :resolve, :describe, :dispose,
     :winner_forfeit, :winner_picked_up, :print, :print_browser,
-    :cancel_giveaway, :claim_ownership, :disown, :cancel_and_relist
+    :cancel_giveaway, :claim_ownership, :disown, :cancel_and_relist,
+    :lost_found_claim, :lost_found_release, :lost_found_picked_up, :lost_found_promote
   ]
 
   def index
     @query = params[:q].to_s.strip
-    items = filtered_items.search(@query).order(created_at: :desc)
-    @stats = Item.gunky_stats
-    @pagy, @items = pagy(:offset, items)
+    items = filtered_site_items.search(@query).order(created_at: :desc)
+
+    if lost_found_site?
+      @stats = Item.lost_found_stats
+      @pagy, @items = pagy(:offset, items)
+      render "lost_found/index"
+    else
+      @stats = Item.gunky_stats
+      @pagy, @items = pagy(:offset, items)
+    end
   end
 
   def show
@@ -22,10 +38,12 @@ class ItemsController < ApplicationController
     @item = Item.new
     prefill_item_from_relist!(params[:relist_from])
     @locations = Location.sorted
+    @lost_found_hold_until = lost_found_hold_until_date if lost_found_site?
   end
 
   def create
     @item = Item.new(item_params)
+    apply_lost_found_on_create!(@item) if lost_found_site?
 
     if @item.save
       PostToSlackJob.perform_later(@item.id) if ENV["SLACK_BOT_TOKEN"].present?
@@ -44,6 +62,7 @@ class ItemsController < ApplicationController
       end
     else
       @locations = Location.sorted
+      @lost_found_hold_until = lost_found_hold_until_date if lost_found_site?
       render :new, status: :unprocessable_entity
     end
   end
@@ -80,6 +99,7 @@ class ItemsController < ApplicationController
 
   def edit
     @locations = Location.sorted
+    @lost_found_hold_until = lost_found_hold_until_date if lost_found_site?
   end
 
   def update
@@ -87,12 +107,14 @@ class ItemsController < ApplicationController
       redirect_to item_path(@item), notice: "Item was successfully updated."
     else
       @locations = Location.sorted
+      @lost_found_hold_until = lost_found_hold_until_date if lost_found_site?
       render :edit, status: :unprocessable_entity
     end
   end
 
   def destroy
     enqueue_slack_delete(@item)
+    enqueue_lost_found_slack_delete(@item)
     @item.destroy
     redirect_to items_path, notice: "Item was successfully deleted."
   end
@@ -117,7 +139,7 @@ class ItemsController < ApplicationController
   end
 
   def print_completed_browser
-    @browser_print_items = Item.where.not(disposition: :pending).order(:expiration_date, :id)
+    @browser_print_items = Item.gunky_visible.where.not(disposition: :pending).order(:expiration_date, :id)
     render :print_completed_browser, layout: "print_browser"
   end
 
@@ -128,7 +150,7 @@ class ItemsController < ApplicationController
       return
     end
 
-    items = Item.where.not(disposition: :pending).order(:expiration_date, :id)
+    items = Item.gunky_visible.where.not(disposition: :pending).order(:expiration_date, :id)
     if items.empty?
       redirect_to items_path, alert: "No completed items to print."
       return
@@ -275,7 +297,91 @@ class ItemsController < ApplicationController
     redirect_to new_item_path(relist_from: source_id), notice: "Item cancelled. Review and submit the relisted item."
   end
 
+  def lost_found_claim
+    unless @item.lost_found_unclaimed?
+      redirect_back fallback_location: item_path(@item), alert: "Only unclaimed lost+found items can be claimed."
+      return
+    end
+
+    claimed_by = params[:claimed_by].to_s.strip
+    if claimed_by.blank?
+      redirect_back fallback_location: item_path(@item), alert: "Owner name is required."
+      return
+    end
+
+    claim_lost_found_item!(@item, name: claimed_by, slack_user_id: params[:slack_user_id].to_s.presence || "web")
+    redirect_back fallback_location: item_path(@item), notice: "Marked as claimed by #{claimed_by}."
+  end
+
+  def lost_found_release
+    unless release_lost_found_item!(@item)
+      redirect_back fallback_location: item_path(@item), alert: "Only claimed lost+found items can be released."
+      return
+    end
+
+    redirect_back fallback_location: item_path(@item), notice: "Claim released; item is unclaimed again."
+  end
+
+  def lost_found_picked_up
+    unless mark_lost_found_picked_up!(@item)
+      redirect_back fallback_location: item_path(@item), alert: "Only claimed lost+found items can be marked picked up."
+      return
+    end
+
+    redirect_back fallback_location: item_path(@item), notice: "Marked as picked up."
+  end
+
+  def lost_found_promote
+    unless promote_lost_found_item!(@item)
+      redirect_back fallback_location: item_path(@item), alert: "Only unclaimed or claimed lost+found items can be promoted."
+      return
+    end
+
+    redirect_back fallback_location: item_path(@item), notice: "Promoted to Gunky giveaway."
+  end
+
   private
+
+  def filtered_site_items
+    lost_found_site? ? filter_lost_found_items : filter_gunky_items
+  end
+
+  def filter_gunky_items
+    disposition = params[:disposition].to_s
+    scope = Item.gunky_visible
+
+    if disposition == "owned"
+      scope.owned
+    elsif disposition == "cancelled"
+      scope.giveaway_cancelled
+    elsif disposition == "picked_up"
+      Item.picked_up
+    elsif disposition == "awaiting_pickup"
+      Item.awaiting_pickup
+    elsif disposition.present? && Item.dispositions.key?(disposition)
+      scope.where(disposition: disposition)
+    else
+      scope
+    end
+  end
+
+  def filter_lost_found_items
+    filter = params[:disposition].to_s
+    scope = Item.lost_found_visible
+    state = LOST_FOUND_FILTERS[filter]
+    return scope.public_send(state) if state
+
+    scope.lost_found_active
+  end
+
+  def apply_lost_found_on_create!(item)
+    hold_days = LostFoundSetting.instance.hold_days
+    item.start_lost_found!(hold_days: hold_days)
+  end
+
+  def lost_found_hold_until_date
+    LostFoundSetting.instance.hold_days.days.from_now.to_date
+  end
 
   def prefill_item_from_relist!(source_id)
     return if source_id.blank?
@@ -286,7 +392,7 @@ class ItemsController < ApplicationController
     @item.assign_attributes(
       description: source.description,
       location: source.location,
-      expiration_date: 7.days.from_now.to_date
+      expiration_date: lost_found_site? ? lost_found_hold_until_date : 7.days.from_now.to_date
     )
     return unless source.photo.attached?
 
@@ -300,30 +406,14 @@ class ItemsController < ApplicationController
     SlackService.new.cancel_item_message(@item)
   end
 
-  def filtered_items
-    disposition = params[:disposition].to_s
-
-    if disposition == "owned"
-      Item.owned
-    elsif disposition == "cancelled"
-      Item.giveaway_cancelled
-    elsif disposition == "picked_up"
-      Item.picked_up
-    elsif disposition == "awaiting_pickup"
-      Item.awaiting_pickup
-    elsif disposition.present? && Item.dispositions.key?(disposition)
-      Item.where(disposition: disposition)
-    else
-      Item.all
-    end
-  end
-
   def set_item
     @item = Item.find(params[:id])
   end
 
   def item_params
-    params.require(:item).permit(:description, :location, :photo, :expiration_date)
+    permitted = [ :description, :location, :photo ]
+    permitted << :expiration_date unless lost_found_site?
+    params.require(:item).permit(*permitted)
   end
 
   def winner_vote_for(item)
@@ -335,6 +425,13 @@ class ItemsController < ApplicationController
     return unless ENV["SLACK_BOT_TOKEN"].present?
 
     DeleteFromSlackJob.perform_later(item.slack_channel_id, item.slack_message_ts)
+  end
+
+  def enqueue_lost_found_slack_delete(item)
+    return unless item.posted_to_lost_found_slack?
+    return unless ENV["SLACK_BOT_TOKEN"].present?
+
+    DeleteFromSlackJob.perform_later(item.lost_found_slack_channel_id, item.lost_found_slack_message_ts)
   end
 
   def upload_preview_photo(photo)

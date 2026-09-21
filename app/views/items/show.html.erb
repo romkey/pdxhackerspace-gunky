@@ -41,11 +41,57 @@
           <th>Disposition</th>
           <td>
             <span class="badge <%= disposition_badge_class(@item.disposition) %> fs-6"><%= item_disposition_label(@item) %></span>
+            <% if @item.was_lost_found? %>
+              <span class="badge bg-info text-dark fs-6">Was lost+found</span>
+            <% end %>
             <% if @item.expired? && @item.pending? %>
               <span class="badge bg-warning text-dark fs-6">Expired</span>
             <% end %>
           </td>
         </tr>
+        <% if @item.was_lost_found? %>
+          <tr>
+            <th>Lost+Found status</th>
+            <td>
+              <span class="badge <%= lost_found_state_badge_class(@item) %> fs-6"><%= lost_found_state_label(@item) %></span>
+              <% if @item.lost_found_pickup_overdue? %>
+                <span class="badge bg-danger fs-6">Pickup overdue</span>
+              <% end %>
+            </td>
+          </tr>
+          <% if @item.lost_found_hold_until.present? %>
+            <tr>
+              <th>Hold until</th>
+              <td><%= @item.lost_found_hold_until.strftime("%B %d, %Y") %></td>
+            </tr>
+          <% end %>
+          <% if @item.lost_found_claimed_by.present? %>
+            <tr>
+              <th>Lost+Found claimer</th>
+              <td><%= @item.lost_found_claimed_by %></td>
+            </tr>
+          <% end %>
+          <% if @item.lost_found_pickup_deadline.present? %>
+            <tr>
+              <th>Pickup deadline</th>
+              <td class="<%= @item.lost_found_pickup_overdue? ? "text-danger" : "" %>">
+                <%= lost_found_pickup_deadline_line(@item) %>
+              </td>
+            </tr>
+          <% end %>
+          <% if @item.lost_found_picked_up_at.present? %>
+            <tr>
+              <th>Picked up</th>
+              <td><%= @item.lost_found_picked_up_at.strftime("%B %d, %Y at %l:%M %p") %></td>
+            </tr>
+          <% end %>
+          <% if @item.lost_found_promoted_at.present? %>
+            <tr>
+              <th>Promoted to Gunky</th>
+              <td><%= @item.lost_found_promoted_at.strftime("%B %d, %Y at %l:%M %p") %></td>
+            </tr>
+          <% end %>
+        <% end %>
         <% if @item.owned? %>
           <tr>
             <th>Owned by</th>
@@ -104,7 +150,26 @@
       </div>
     <% end %>
 
-    <% if @item.pending? %>
+    <% if @item.lost_found_unclaimed? || @item.lost_found_claimed? %>
+      <hr>
+      <h5>Lost+Found actions</h5>
+      <% if @item.lost_found_unclaimed? %>
+        <%= form_with url: lost_found_claim_item_path(@item), method: :post, class: "d-flex flex-wrap gap-2 align-items-center mb-3" do |f| %>
+          <%= f.text_field :claimed_by, class: "form-control form-control-sm", placeholder: "Owner name", required: true, style: "max-width: 12rem;" %>
+          <%= f.submit "This is mine", class: "btn btn-outline-primary btn-sm" %>
+        <% end %>
+      <% elsif @item.lost_found_claimed? %>
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          <%= button_to "Picked up", lost_found_picked_up_item_path(@item), method: :post, class: "btn btn-outline-success btn-sm" %>
+          <%= button_to "Release claim", lost_found_release_item_path(@item), method: :post, class: "btn btn-outline-warning btn-sm", form: { data: { turbo_confirm: "Release this claim?" } } %>
+        </div>
+      <% end %>
+      <% if @item.lost_found_unclaimed? || @item.lost_found_claimed? %>
+        <%= button_to "Promote to Gunky now", lost_found_promote_item_path(@item), method: :post, class: "btn btn-outline-secondary btn-sm mb-3", form: { data: { turbo_confirm: "Promote this item to a Gunky giveaway now?" } } %>
+      <% end %>
+    <% end %>
+
+    <% if @item.pending? && !@item.in_lost_found? %>
       <hr>
       <h5>Resolve this item</h5>
       <%= form_with url: resolve_item_path(@item), method: :patch, class: "mb-3" do |f| %>

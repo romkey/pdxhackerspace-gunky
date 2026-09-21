@@ -1,5 +1,6 @@
 class SlackInteractionsController < ApplicationController
   include ExpiredItemMessageRefresh
+  include LostFoundActions
 
   skip_before_action :verify_authenticity_token
   before_action :verify_slack_signature
@@ -43,6 +44,10 @@ class SlackInteractionsController < ApplicationController
         handle_expired_forfeit_action(payload, action)
       when action_id.start_with?("expired_picked_up:")
         handle_expired_picked_up_action(payload, action)
+      when action_id == "lost_found_claim"
+        handle_lost_found_claim_action(payload, action)
+      when action_id.start_with?("lost_found_picked_up:")
+        handle_lost_found_picked_up_action(payload, action)
       end
     end
   end
@@ -53,7 +58,7 @@ class SlackInteractionsController < ApplicationController
     user = payload["user"]
 
     item = Item.find_by(id: item_id)
-    unless item&.pending?
+    unless item&.pending? && !item.in_lost_found?
       Rails.logger.info(
         "Slack vote ignored for non-pending item (item_id=#{item_id}, disposition=#{item&.disposition.inspect}, user_id=#{user['id']})"
       )
@@ -71,12 +76,66 @@ class SlackInteractionsController < ApplicationController
     SlackService.new.update_item_message(item)
   end
 
+  def handle_lost_found_claim_action(payload, action)
+    item_id = action["value"].to_i
+    user = payload["user"] || {}
+
+    item = Item.find_by(id: item_id)
+    unless item&.lost_found_unclaimed?
+      if item&.lost_found_claimed?
+        notify_lost_found_already_claimed(payload, item)
+      else
+        Rails.logger.info(
+          "Slack lost+found claim ignored for item #{item_id} (state=#{item&.lost_found_state.inspect})"
+        )
+      end
+      return
+    end
+
+    resolved_name = resolve_slack_name(user)
+    claim_lost_found_item!(item, name: resolved_name, slack_user_id: user["id"])
+  end
+
+  def handle_lost_found_picked_up_action(payload, action)
+    item_id = action["value"].to_i
+    target_user_id = action["action_id"].delete_prefix("lost_found_picked_up:")
+    return unless authorized_for_lost_found_pickup?(payload, target_user_id)
+
+    item = Item.find_by(id: item_id)
+    return unless item&.lost_found_claimed?
+
+    mark_lost_found_picked_up!(item)
+    Rails.logger.info("Lost+found item #{item.id}: #{target_user_id} marked picked up")
+  end
+
+  def authorized_for_lost_found_pickup?(payload, target_user_id)
+    acting_user_id = payload.dig("user", "id").to_s
+    return true if acting_user_id == target_user_id
+
+    Rails.logger.info(
+      "Lost+found pickup ignored: #{acting_user_id} pressed a button belonging to #{target_user_id}"
+    )
+    notify_wrong_user(payload, target_user_id)
+    false
+  end
+
+  def notify_lost_found_already_claimed(payload, item)
+    claimer = item.lost_found_claimed_by
+    SlackService.new.post_ephemeral(
+      channel: payload.dig("channel", "id"),
+      user: payload.dig("user", "id"),
+      text: "Already claimed by #{claimer}."
+    )
+  rescue => e
+    Rails.logger.error("Failed to send lost+found already-claimed notice: #{e.class}: #{e.message}")
+  end
+
   def handle_keep_item_action(payload, action)
     item_id = action["value"].to_i
     user = payload["user"] || {}
 
     item = Item.find_by(id: item_id)
-    unless item&.pending?
+    unless item&.pending? && !item.in_lost_found?
       Rails.logger.info(
         "Slack keep-item ignored for non-pending item (item_id=#{item_id}, disposition=#{item&.disposition.inspect}, user_id=#{user['id']})"
       )

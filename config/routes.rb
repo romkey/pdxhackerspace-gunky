@@ -27,6 +27,10 @@ Rails.application.routes.draw do
       post :claim_ownership
       post :disown
       post :cancel_and_relist
+      post :lost_found_claim
+      post :lost_found_release
+      post :lost_found_picked_up
+      post :lost_found_promote
     end
   end
 
@@ -34,6 +38,7 @@ Rails.application.routes.draw do
     resources :locations, except: :show
     resource :agent, only: [ :show, :update ], controller: "agent"
     resource :print, only: [ :show, :update ], controller: "print"
+    resource :lost_found, only: [ :show, :update ], controller: "lost_found"
     resources :slack_member_caches, only: [ :index, :destroy ] do
       collection do
         post :refresh_items

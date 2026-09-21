@@ -5,7 +5,11 @@ class PostToSlackJob < ApplicationJob
     item = Item.find_by(id: item_id)
     return unless item
 
-    SlackService.new.post_item(item)
+    if item.in_lost_found?
+      SlackService.new.post_lost_found_item(item)
+    else
+      SlackService.new.post_item(item)
+    end
   rescue Slack::Web::Api::Errors::SlackError => e
     Rails.logger.error("Failed to post item #{item_id} to Slack: #{e.message}")
     raise if e.message == "channel_not_found" || e.message == "not_authed"

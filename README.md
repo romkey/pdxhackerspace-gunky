@@ -53,10 +53,16 @@ Under **Settings → Thermal printer**, set the **CUPS printer queue** name from
 5. Optional: set `SLACK_USER_LOOKUP_TOKEN` to a token with `users:read` if you want name lookups separate from the bot token
 6. Under **Interactivity & Shortcuts**, enable interactivity and set the request URL to `https://your-domain/slack/interactions`
 7. Copy the **Signing Secret** from **Basic Information** to `SLACK_SIGNING_SECRET` in `.env`
-8. Set `SLACK_CHANNEL_ID` to the channel where polls should be posted
-9. Set `APP_HOST` for image URLs used in Slack messages (host or host:port). Optionally set `APP_PROTOCOL` (`http` or `https`).
-10. Set `APP_INTERNAL_URL` to the full base URL used in expiry outcome Slack links (for example `https://gunky.example.org`).
-11. Optional: set `SENTRY_DSN` (or `SENTRY_ENDPOINT`) to enable Sentry error reporting for web and Sidekiq.
+8. Set `SLACK_CHANNEL_ID` to the channel where Gunky polls should be posted
+9. Set `SLACK_LOST_FOUND_CHANNEL_ID` to the channel where lost+found items are posted (falls back to `SLACK_CHANNEL_ID` if unset)
+10. Set `GUNKY_URL` and `LOST_FOUND_URL` to the public base URLs for each site (for example `https://gunky.example.org` and `https://lostfound.example.org`). The request host determines which site you see; unknown hosts are treated as Gunky.
+11. Set `APP_HOST` for image URLs used in Slack messages (host or host:port). Optionally set `APP_PROTOCOL` (`http` or `https`).
+12. Set `APP_INTERNAL_URL` to the full base URL used in expiry outcome Slack links (for example `https://gunky.example.org`).
+13. Optional: set `SENTRY_DSN` (or `SENTRY_ENDPOINT`) to enable Sentry error reporting for web and Sidekiq.
+
+### Lost+Found
+
+Lost+Found is an optional phase before the normal Gunky giveaway flow. Upload an item on the lost+found domain and it posts to the lost+found Slack channel with a **This is mine** button. Unclaimed items are promoted to Gunky after the hold period (default 14 days, configurable under **Settings → Lost+Found**). Claimed items must be picked up within the pickup deadline (default 7 days) or they are promoted to Gunky as well. Promoted items enter the normal Gunky poll and are flagged as having been lost+found.
 
 ### Running Tests
 

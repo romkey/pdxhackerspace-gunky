@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_21_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_21_140100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -62,12 +62,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_21_120000) do
     t.integer "disposition", default: 0, null: false
     t.date "expiration_date"
     t.string "location"
+    t.datetime "lost_found_claimed_at"
+    t.string "lost_found_claimed_by"
+    t.string "lost_found_claimed_by_slack_user_id"
+    t.date "lost_found_hold_until"
+    t.datetime "lost_found_picked_up_at"
+    t.date "lost_found_pickup_deadline"
+    t.datetime "lost_found_posted_at"
+    t.datetime "lost_found_promoted_at"
+    t.string "lost_found_slack_channel_id"
+    t.string "lost_found_slack_message_ts"
+    t.integer "lost_found_state", default: 0, null: false
     t.string "slack_channel_id"
     t.string "slack_message_ts"
     t.datetime "updated_at", null: false
     t.index ["disposed_at"], name: "index_items_on_disposed_at"
     t.index ["disposition"], name: "index_items_on_disposition"
     t.index ["expiration_date"], name: "index_items_on_expiration_date"
+    t.index ["lost_found_hold_until"], name: "index_items_on_lost_found_hold_until"
+    t.index ["lost_found_pickup_deadline"], name: "index_items_on_lost_found_pickup_deadline"
+    t.index ["lost_found_state"], name: "index_items_on_lost_found_state"
   end
 
   create_table "locations", force: :cascade do |t|
@@ -75,6 +89,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_21_120000) do
     t.string "name", null: false
     t.datetime "updated_at", null: false
     t.index ["name"], name: "index_locations_on_name", unique: true
+  end
+
+  create_table "lost_found_settings", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.integer "hold_days", default: 14, null: false
+    t.integer "pickup_days", default: 7, null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "print_settings", force: :cascade do |t|

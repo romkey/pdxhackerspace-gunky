@@ -113,7 +113,52 @@ class SlackService
     @client.chat_delete(**payload)
   end
 
+  def post_lost_found_item(item)
+    summary_text = item.display_description.to_s
+    blocks = build_lost_found_blocks(item)
+    payload = {
+      channel: lost_found_channel_id,
+      text: "Lost+Found: #{summary_text.truncate(100)}",
+      blocks: blocks
+    }
+    log_payload("chat_postMessage_lost_found", payload)
+    response = @client.chat_postMessage(**payload)
+
+    item.update!(
+      lost_found_slack_message_ts: response["ts"],
+      lost_found_slack_channel_id: response["channel"],
+      lost_found_posted_at: Time.current
+    )
+
+    response
+  end
+
+  def update_lost_found_item_message(item)
+    return unless item.was_lost_found?
+    return unless item.posted_to_lost_found_slack?
+
+    summary_text = item.display_description.to_s
+    blocks = build_lost_found_blocks(item)
+    payload = {
+      channel: item.lost_found_slack_channel_id,
+      ts: item.lost_found_slack_message_ts,
+      text: "Lost+Found: #{summary_text.truncate(100)}",
+      blocks: blocks
+    }
+    log_payload("chat_update_lost_found", payload)
+    @client.chat_update(**payload)
+  end
+
   private
+
+  def lost_found_channel_id
+    channel = ENV["SLACK_LOST_FOUND_CHANNEL_ID"].to_s.strip
+    if channel.blank?
+      Rails.logger.warn("SLACK_LOST_FOUND_CHANNEL_ID not set; falling back to SLACK_CHANNEL_ID")
+      channel = ENV.fetch("SLACK_CHANNEL_ID")
+    end
+    channel
+  end
 
   def cancelled_item_message(item)
     if item.claimed_by.present?
@@ -376,6 +421,13 @@ class SlackService
       }
     end
 
+    if item.was_lost_found?
+      blocks << {
+        type: "context",
+        elements: [ { type: "mrkdwn", text: ":mag: Previously in lost+found" } ]
+      }
+    end
+
     if item.pending?
       blocks << {
         type: "actions",
@@ -390,6 +442,116 @@ class SlackService
     end
 
     blocks
+  end
+
+  def build_lost_found_blocks(item)
+    blocks = []
+    summary_text = item.display_description.to_s
+
+    blocks << {
+      type: "header",
+      text: { type: "plain_text", text: "Lost+Found: #{summary_text.truncate(130)}", emoji: true }
+    }
+
+    fields = []
+    fields << { type: "mrkdwn", text: "*Location:*\n#{item.location.presence || 'Not specified'}" }
+    fields << { type: "mrkdwn", text: "*Status:*\n#{lost_found_status_label(item)}" }
+
+    if item.lost_found_hold_until.present? && item.lost_found_unclaimed?
+      fields << { type: "mrkdwn", text: "*Unclaimed until:*\n#{item.lost_found_hold_until.strftime('%b %d, %Y')}" }
+    end
+
+    if item.lost_found_pickup_deadline.present? && item.lost_found_claimed?
+      fields << { type: "mrkdwn", text: "*Pick up by:*\n#{item.lost_found_pickup_deadline.strftime('%b %d, %Y')}" }
+    end
+
+    blocks << { type: "section", fields: fields }
+
+    if item.photo.attached?
+      photo_url = Rails.application.routes.url_helpers.rails_blob_url(item.photo, **app_url_options)
+      blocks << {
+        type: "image",
+        image_url: photo_url,
+        alt_text: summary_text.truncate(50)
+      }
+    end
+
+    blocks << {
+      type: "context",
+      elements: [ { type: "mrkdwn", text: lost_found_context_text(item) } ]
+    }
+
+    link_text = item_internal_link_markdown(item)
+    if link_text.present?
+      blocks << {
+        type: "context",
+        elements: [ { type: "mrkdwn", text: link_text } ]
+      }
+    end
+
+    if item.lost_found_unclaimed?
+      blocks << {
+        type: "actions",
+        block_id: "lost_found_#{item.id}",
+        elements: [
+          {
+            type: "button",
+            text: { type: "plain_text", text: "This is mine" },
+            action_id: "lost_found_claim",
+            value: item.id.to_s,
+            style: "primary"
+          }
+        ]
+      }
+    elsif item.lost_found_claimed? && item.lost_found_claimed_by_slack_user_id.present?
+      user_id = item.lost_found_claimed_by_slack_user_id
+      blocks << {
+        type: "actions",
+        block_id: "lost_found_pickup_#{item.id}_#{user_id}",
+        elements: [
+          {
+            type: "button",
+            text: { type: "plain_text", text: "Picked up" },
+            action_id: "lost_found_picked_up:#{user_id}",
+            value: item.id.to_s,
+            style: "primary"
+          }
+        ]
+      }
+    end
+
+    blocks
+  end
+
+  def lost_found_status_label(item)
+    if item.lost_found_unclaimed?
+      "Unclaimed"
+    elsif item.lost_found_claimed?
+      "Claimed by #{item.lost_found_claimed_by}"
+    elsif item.lost_found_picked_up?
+      "Picked up by #{item.lost_found_claimed_by}"
+    elsif item.lost_found_promoted?
+      "Promoted to Gunky"
+    else
+      item.lost_found_state.humanize
+    end
+  end
+
+  def lost_found_context_text(item)
+    if item.lost_found_unclaimed? && item.lost_found_hold_until.present?
+      "Becomes a Gunky giveaway after #{item.lost_found_hold_until.strftime('%b %d, %Y')} if unclaimed."
+    elsif item.lost_found_claimed? && item.lost_found_pickup_deadline.present?
+      user_id = item.lost_found_claimed_by_slack_user_id
+      mention = user_id.present? ? "<@#{user_id}>" : item.lost_found_claimed_by
+      ":white_check_mark: Claimed by #{mention}. Pick this up by " \
+        "#{item.lost_found_pickup_deadline.strftime('%b %d, %Y')} or it goes to Gunky."
+    elsif item.lost_found_picked_up?
+      ":white_check_mark: Picked up by #{item.lost_found_claimed_by}."
+    elsif item.lost_found_promoted?
+      ":arrow_right: Promoted to a Gunky giveaway."
+    else
+      "Lost+Found item"
+    end
   end
 
   def app_url_options
