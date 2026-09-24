@@ -28,6 +28,13 @@ class SiteTest < ActiveSupport::TestCase
     assert_equal "lostfound.localhost:3000", Site.request_host_key("lostfound.localhost", 3000)
   end
 
+  test "for_request matches lost+found host case-insensitively" do
+    ENV["LOST_FOUND_URL"] = "http://LostFound.Test"
+
+    assert_equal Site::LOST_FOUND, Site.for_request("lostfound.test")
+    assert_equal Site::LOST_FOUND, Site.for_request("LOSTFOUND.TEST")
+  end
+
   test "gunky_url and lost_found_url read from environment" do
     assert_equal "http://gunky.test", Site.gunky_url
     assert_equal "http://lostfound.test", Site.lost_found_url

@@ -5,6 +5,41 @@ class SlackServiceLostFoundTest < ActiveSupport::TestCase
     @item = items(:lost_found_unclaimed_item)
   end
 
+  test "post_lost_found_item retries without image when Slack rejects image block" do
+    @item.photo.attach(
+      io: StringIO.new("fake image bytes"),
+      filename: "item.jpg",
+      content_type: "image/jpeg"
+    )
+
+    service = SlackService.new
+    client = FakeSlackClient.new(ts: "777.888", channel: "CLF")
+    service.instance_variable_set(:@client, client)
+
+    call_count = 0
+    client.define_singleton_method(:chat_postMessage) do |**kwargs|
+      call_count += 1
+      if call_count == 1
+        raise Slack::Web::Api::Errors::SlackError.new(
+          "invalid_blocks",
+          response: { "ok" => false, "error" => "invalid_blocks" }
+        )
+      end
+
+      @post_calls << kwargs
+      { "ts" => @ts, "channel" => @channel }
+    end
+
+    ENV["SLACK_LOST_FOUND_CHANNEL_ID"] = "CLF"
+    service.post_lost_found_item(@item)
+    ENV.delete("SLACK_LOST_FOUND_CHANNEL_ID")
+
+    assert_equal 2, call_count
+    assert_equal 1, client.post_calls.size
+    blocks = client.post_calls.first[:blocks]
+    assert blocks.none? { |b| b[:type] == "image" }
+  end
+
   test "post_lost_found_item updates lost+found slack metadata" do
     service = SlackService.new
     client = FakeSlackClient.new(ts: "555.666", channel: "CLF")

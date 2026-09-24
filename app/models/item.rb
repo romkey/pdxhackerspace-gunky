@@ -18,6 +18,7 @@ class Item < ApplicationRecord
   end
 
   before_create :set_default_expiration
+  after_create_commit :enqueue_post_to_slack, if: :should_enqueue_slack_post?
 
   scope :gunky_visible, -> {
     where(lost_found_state: [ lost_found_states[:not_lost_found], lost_found_states[:lost_found_promoted] ])
@@ -362,6 +363,14 @@ class Item < ApplicationRecord
 
   def set_default_expiration
     self.expiration_date ||= 7.days.from_now.to_date
+  end
+
+  def should_enqueue_slack_post?
+    ENV["SLACK_BOT_TOKEN"].present?
+  end
+
+  def enqueue_post_to_slack
+    PostToSlackJob.perform_later(id)
   end
 
   def description_or_photo_present

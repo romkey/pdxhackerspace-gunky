@@ -61,6 +61,21 @@ class PostToSlackJobTest < ActiveJob::TestCase
     load Rails.root.join("app/services/slack_service.rb")
   end
 
+  test "re-raises not_in_channel error" do
+    item = items(:pending_item)
+
+    SlackService.define_method(:post_item) do |_|
+      raise Slack::Web::Api::Errors::SlackError.new("not_in_channel", response: { "ok" => false, "error" => "not_in_channel" })
+    end
+
+    assert_raises Slack::Web::Api::Errors::SlackError do
+      PostToSlackJob.perform_now(item.id)
+    end
+  ensure
+    SlackService.remove_method(:post_item)
+    load Rails.root.join("app/services/slack_service.rb")
+  end
+
   test "re-raises not_authed error" do
     item = items(:pending_item)
 

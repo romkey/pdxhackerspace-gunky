@@ -116,15 +116,22 @@ class SlackService
   end
 
   def post_lost_found_item(item)
+    channel = lost_found_channel_id
     summary_text = item.display_description.to_s
-    blocks = build_lost_found_blocks(item)
-    payload = {
-      channel: lost_found_channel_id,
-      text: "Lost+Found: #{summary_text.truncate(100)}",
-      blocks: blocks
-    }
-    log_payload("chat_postMessage_lost_found", payload)
-    response = @client.chat_postMessage(**payload)
+    text = "Lost+Found: #{summary_text.truncate(100)}"
+    want_image = item.photo.attached?
+
+    response =
+      begin
+        chat_post_lost_found(channel, text, build_lost_found_blocks(item, include_image: want_image))
+      rescue Slack::Web::Api::Errors::SlackError => e
+        raise unless want_image && slack_error_may_be_image_block?(e)
+
+        Rails.logger.warn(
+          "SlackService post_lost_found_item retry without image for item #{item.id}: #{e.class}: #{e.message}"
+        )
+        chat_post_lost_found(channel, text, build_lost_found_blocks(item, include_image: false))
+      end
 
     item.update!(
       lost_found_slack_message_ts: response["ts"],
@@ -210,6 +217,12 @@ class SlackService
   def chat_post_expired(channel, text, blocks)
     payload = { channel: channel, text: text, blocks: blocks }
     log_payload("chat_postMessage_expired", payload)
+    @client.chat_postMessage(**payload)
+  end
+
+  def chat_post_lost_found(channel, text, blocks)
+    payload = { channel: channel, text: text, blocks: blocks }
+    log_payload("chat_postMessage_lost_found", payload)
     @client.chat_postMessage(**payload)
   end
 
@@ -446,7 +459,7 @@ class SlackService
     blocks
   end
 
-  def build_lost_found_blocks(item)
+  def build_lost_found_blocks(item, include_image: true)
     blocks = []
     summary_text = item.display_description.to_s
 
@@ -469,7 +482,7 @@ class SlackService
 
     blocks << { type: "section", fields: fields }
 
-    if item.photo.attached?
+    if include_image && item.photo.attached?
       photo_url = Rails.application.routes.url_helpers.rails_blob_url(item.photo, **app_url_options)
       blocks << {
         type: "image",

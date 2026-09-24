@@ -8,7 +8,11 @@ class Site
     end
 
     def for_request(host, port = nil)
-      return LOST_FOUND if host.present? && request_host_key(host, port) == lost_found_host
+      lf_host = lost_found_host
+      if host.present? && lf_host.present? &&
+         request_host_key(host, port).casecmp?(lf_host.to_s)
+        return LOST_FOUND
+      end
 
       GUNKY
     end

@@ -46,7 +46,6 @@ class ItemsController < ApplicationController
     apply_lost_found_on_create!(@item) if lost_found_site?
 
     if @item.save
-      PostToSlackJob.perform_later(@item.id) if ENV["SLACK_BOT_TOKEN"].present?
       if @item.photo.attached? && @item.description.blank?
         if AgentSetting.enabled?
           Rails.logger.info("Enqueuing DescribeItemJob for item #{@item.id}")

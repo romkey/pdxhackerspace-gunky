@@ -1,3 +1,3 @@
 module Gunky
-  VERSION = "0.17.0"
+  VERSION = "0.18.1"
 end
