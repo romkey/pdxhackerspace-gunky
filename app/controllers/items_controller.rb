@@ -37,6 +37,7 @@ class ItemsController < ApplicationController
   def new
     @item = Item.new
     prefill_item_from_relist!(params[:relist_from])
+    apply_default_lost_found_location!(@item) if lost_found_site?
     @locations = Location.sorted
     @lost_found_hold_until = lost_found_hold_until_date if lost_found_site?
   end
@@ -378,8 +379,16 @@ class ItemsController < ApplicationController
   end
 
   def apply_lost_found_on_create!(item)
+    apply_default_lost_found_location!(item)
     hold_days = LostFoundSetting.instance.hold_days
     item.start_lost_found!(hold_days: hold_days)
+  end
+
+  def apply_default_lost_found_location!(item)
+    return if item.location.present?
+
+    default_location = Location.default_lost_found_location
+    item.location = default_location.name if default_location
   end
 
   def lost_found_hold_until_date

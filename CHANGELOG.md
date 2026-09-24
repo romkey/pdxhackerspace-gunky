@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.18.3] - 2026-09-24
+
+### Added
+
+- Default lost+found location flag on locations (only one allowed), used to prefill lost+found uploads
+
 ## [0.18.2] - 2026-09-24
 
 ### Fixed

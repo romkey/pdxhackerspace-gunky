@@ -58,6 +58,26 @@ class ItemsControllerLostFoundTest < ActionDispatch::IntegrationTest
     assert_redirected_to item_path(item)
   end
 
+  test "create on lost+found host uses default location when blank" do
+    host! @lost_found_host
+    locations(:shelf).update!(default_lost_found: true)
+
+    post items_path, params: { item: { description: "Found keys" } }
+
+    item = Item.order(:id).last
+    assert_equal "Lost shelf", item.location
+  end
+
+  test "new form on lost+found host prefills default location" do
+    host! @lost_found_host
+    locations(:shelf).update!(default_lost_found: true)
+
+    get new_item_path
+
+    assert_response :success
+    assert_select "input[name='item[location]'][value='Lost shelf']"
+  end
+
   test "create on gunky host stays not lost+found" do
     host! @gunky_host
 

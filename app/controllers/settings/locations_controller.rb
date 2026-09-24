@@ -41,7 +41,7 @@ module Settings
     end
 
     def location_params
-      params.require(:location).permit(:name)
+      params.require(:location).permit(:name, :default_lost_found)
     end
   end
 end

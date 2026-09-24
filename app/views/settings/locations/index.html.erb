@@ -20,6 +20,7 @@
     <thead>
       <tr>
         <th>Name</th>
+        <th>Lost+Found</th>
         <th class="text-end" style="width: 150px;">Actions</th>
       </tr>
     </thead>
@@ -27,6 +28,13 @@
       <% @locations.each do |location| %>
         <tr>
           <td class="align-middle"><%= location.name %></td>
+          <td class="align-middle">
+            <% if location.default_lost_found? %>
+              <span class="badge bg-info text-dark">Default</span>
+            <% else %>
+              <span class="text-muted">—</span>
+            <% end %>
+          </td>
           <td class="text-end">
             <%= link_to "Edit", edit_settings_location_path(location), class: "btn btn-sm btn-outline-secondary" %>
             <%= button_to "Delete", settings_location_path(location), method: :delete, class: "btn btn-sm btn-outline-danger", form: { data: { turbo_confirm: "Delete '#{location.name}'?" } } %>
