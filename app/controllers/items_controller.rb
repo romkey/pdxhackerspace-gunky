@@ -43,6 +43,7 @@ class ItemsController < ApplicationController
 
   def create
     @item = Item.new(item_params)
+    attach_item_photo!(@item)
     apply_lost_found_on_create!(@item) if lost_found_site?
 
     if @item.save
@@ -102,7 +103,10 @@ class ItemsController < ApplicationController
   end
 
   def update
-    if @item.update(item_params)
+    @item.assign_attributes(item_params)
+    attach_item_photo!(@item)
+
+    if @item.save
       redirect_to item_path(@item), notice: "Item was successfully updated."
     else
       @locations = Location.sorted
@@ -410,7 +414,7 @@ class ItemsController < ApplicationController
   end
 
   def item_params
-    permitted = [ :description, :location, :photo ]
+    permitted = [ :description, :location ]
     permitted << :expiration_date unless lost_found_site?
     params.require(:item).permit(*permitted)
   end
@@ -439,19 +443,50 @@ class ItemsController < ApplicationController
       return nil
     end
 
-    io = photo.respond_to?(:tempfile) ? photo.tempfile : photo
-    io.rewind if io.respond_to?(:rewind)
-
+    normalized = normalize_uploaded_photo(photo)
     blob = ActiveStorage::Blob.create_and_upload!(
+      io: normalized.io,
+      filename: normalized.filename,
+      content_type: normalized.content_type
+    )
+    Rails.logger.info(
+      "preview_photo: uploaded blob #{blob.key} " \
+      "(#{blob.byte_size} bytes, #{blob.content_type}#{normalized.converted ? ", converted from HEIC" : ""})"
+    )
+    blob
+  rescue Vips::Error => e
+    Rails.logger.error("preview_photo: image conversion failed: #{e.message}")
+    render json: { error: "Unable to process this photo. Try JPG or PNG." }, status: :unprocessable_entity
+    nil
+  end
+
+  def attach_item_photo!(item)
+    photo = params.dig(:item, :photo)
+    return if photo.blank?
+
+    if photo.is_a?(String)
+      item.photo.attach(photo)
+      return
+    end
+
+    normalized = normalize_uploaded_photo(photo)
+    item.photo.attach(
+      io: normalized.io,
+      filename: normalized.filename,
+      content_type: normalized.content_type
+    )
+  rescue Vips::Error => e
+    Rails.logger.error("attach_item_photo!: image conversion failed: #{e.message}")
+    item.errors.add(:photo, "could not be processed")
+  end
+
+  def normalize_uploaded_photo(photo)
+    io = photo.respond_to?(:tempfile) ? photo.tempfile : photo
+    ImageUploadNormalizer.normalize(
       io: io,
       filename: photo.respond_to?(:original_filename) ? photo.original_filename : "upload.jpg",
       content_type: photo.respond_to?(:content_type) ? photo.content_type : nil
     )
-    Rails.logger.info(
-      "preview_photo: uploaded blob #{blob.key} " \
-      "(#{blob.byte_size} bytes, #{blob.content_type})"
-    )
-    blob
   end
 
   def find_preview_blob(signed_id)

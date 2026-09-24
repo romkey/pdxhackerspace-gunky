@@ -491,6 +491,26 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Photo is required.", JSON.parse(response.body)["error"]
   end
 
+  test "preview_photo converts heic uploads to jpeg" do
+    jpeg = Vips::Image.black(40, 30).jpegsave_buffer
+    file = Tempfile.new([ "item-photo", ".heic" ])
+    file.binmode
+    file.write(jpeg)
+    file.rewind
+
+    upload = Rack::Test::UploadedFile.new(file.path, "image/heic", true, original_filename: "iphone.heic")
+
+    post preview_photo_items_path, params: { photo: upload }
+
+    assert_response :success
+    blob = ActiveStorage::Blob.find_signed(JSON.parse(response.body)["signed_id"])
+    assert_equal "image/jpeg", blob.content_type
+    assert_equal "iphone.jpg", blob.filename.to_s
+  ensure
+    file&.close
+    file&.unlink
+  end
+
   test "preview_photo does not call AI" do
     file = Tempfile.new([ "item-photo", ".jpg" ])
     file.binmode

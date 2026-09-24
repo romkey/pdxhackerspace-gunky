@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.18.2] - 2026-09-24
+
+### Fixed
+
+- iPhone HEIC/HEIF uploads are converted to JPEG at upload time so Slack photos and AI description work
+
 ## [0.18.1] - 2026-09-24
 
 ### Fixed
