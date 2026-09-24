@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.18.1] - 2026-09-24
+
+### Fixed
+
+- Lost+Found items not posting to Slack when production env vars were missing from Docker Compose
+- Lost+Found Slack posts failing silently when photo blocks were rejected or the bot was not in the channel
+- Lost+Found site detection for mixed-case hostnames
+
+## [0.18.0] - 2026-09-24
+
 ### Added
 
 - Lost+Found phase: optional hold period before items enter the normal Gunky giveaway flow, with a separate site domain, Slack channel, and **This is mine** claim button
