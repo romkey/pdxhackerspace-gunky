@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-09-27
+
 ### Added
 
 - Slack thread reply pointing at similar items posted in the last 60 days, enabled with `DUPLICATE_HINTS_ENABLED`
