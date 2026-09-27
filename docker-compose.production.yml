@@ -40,6 +40,7 @@ services:
       APP_INTERNAL_URL: ${APP_INTERNAL_URL:-}
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_ENDPOINT: ${SENTRY_ENDPOINT:-}
+      GUNKY_ADMIN_PASSWORD: ${GUNKY_ADMIN_PASSWORD:-}
 
   sidekiq:
     image: ghcr.io/romkey/pdxhackerspace-gunky:${IMAGE_TAG:-latest}
@@ -67,6 +68,7 @@ services:
       APP_INTERNAL_URL: ${APP_INTERNAL_URL:-}
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_ENDPOINT: ${SENTRY_ENDPOINT:-}
+      GUNKY_ADMIN_PASSWORD: ${GUNKY_ADMIN_PASSWORD:-}
 
 volumes:
   postgres_data:

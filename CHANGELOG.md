@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.20.1] - 2026-09-27
+
+### Fixed
+
+- Activity log link in the navbar when `GUNKY_ADMIN_PASSWORD` is set (sign-in still required to view entries)
+- Production Docker Compose now passes `GUNKY_ADMIN_PASSWORD` to web and Sidekiq
+
 ## [0.20.0] - 2026-09-27
 
 ### Added
