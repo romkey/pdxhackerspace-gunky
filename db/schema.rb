@@ -60,6 +60,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_27_150000) do
     t.text "description", null: false
     t.datetime "disposed_at"
     t.integer "disposition", default: 0, null: false
+    t.datetime "duplicate_checked_at"
     t.date "expiration_date"
     t.string "location"
     t.datetime "lost_found_claimed_at"

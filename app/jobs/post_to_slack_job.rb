@@ -17,6 +17,8 @@ class PostToSlackJob < ApplicationJob
       Rails.logger.info("PostToSlackJob posting gunky item #{item_id} to Slack")
       SlackService.new.post_item(item)
     end
+
+    enqueue_duplicate_check(item)
   rescue Slack::Web::Api::Errors::SlackError => e
     error_code = slack_error_code(e)
     Rails.logger.error("Failed to post item #{item_id} to Slack (#{error_code}): #{e.message}")
@@ -24,6 +26,13 @@ class PostToSlackJob < ApplicationJob
   end
 
   private
+
+  # The delayed run covers an AI description that never arrives.
+  def enqueue_duplicate_check(item)
+    CheckDuplicatesJob.perform_later(item.id)
+    CheckDuplicatesJob.set(wait: CheckDuplicatesJob::AI_DESCRIPTION_FALLBACK_WAIT)
+                      .perform_later(item.id, ignore_ai_wait: true)
+  end
 
   def slack_error_code(error)
     error.response&.dig("error").presence || error.message.to_s

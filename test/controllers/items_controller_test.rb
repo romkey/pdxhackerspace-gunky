@@ -981,23 +981,6 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     assert_select "h6", text: "Winners", count: 0
   end
 
-  private
-
-  def with_overridden_class_method(klass, method_name, replacement)
-    original_method = klass.method(method_name)
-    klass.define_singleton_method(method_name, &replacement)
-    yield
-  ensure
-    klass.define_singleton_method(method_name, original_method)
-  end
-
-  def with_overridden_instance_method(klass, method_name, replacement)
-    original_method = klass.instance_method(method_name)
-    klass.define_method(method_name, &replacement)
-    yield
-  ensure
-    klass.define_method(method_name, original_method)
-  end
   test "index filters to items where every winner has collected" do
     collected = Item.create!(description: "Collected crate", disposition: :mine)
     collected.votes.create!(slack_user_id: "U1", slack_username: "a", choice: :mine, picked_up_at: Time.current)

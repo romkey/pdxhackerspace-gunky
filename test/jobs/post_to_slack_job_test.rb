@@ -25,6 +25,33 @@ class PostToSlackJobTest < ActiveJob::TestCase
     load Rails.root.join("app/services/slack_service.rb")
   end
 
+  test "enqueues the duplicate check after posting, plus a fallback" do
+    item = items(:pending_item)
+
+    SlackService.define_method(:post_item) { |_| nil }
+    PostToSlackJob.perform_now(item.id)
+
+    assert_enqueued_with(job: CheckDuplicatesJob, args: [ item.id ])
+    assert_enqueued_with(job: CheckDuplicatesJob, args: [ item.id, { ignore_ai_wait: true } ])
+  ensure
+    SlackService.remove_method(:post_item)
+    load Rails.root.join("app/services/slack_service.rb")
+  end
+
+  test "does not enqueue the duplicate check when posting fails" do
+    item = items(:pending_item)
+
+    SlackService.define_method(:post_item) do |_|
+      raise Slack::Web::Api::Errors::SlackError.new("some_error", response: { "ok" => false, "error" => "some_error" })
+    end
+    PostToSlackJob.perform_now(item.id)
+
+    assert_no_enqueued_jobs(only: CheckDuplicatesJob)
+  ensure
+    SlackService.remove_method(:post_item)
+    load Rails.root.join("app/services/slack_service.rb")
+  end
+
   test "does nothing when item does not exist" do
     assert_nothing_raised do
       PostToSlackJob.perform_now(0)

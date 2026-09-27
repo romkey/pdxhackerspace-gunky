@@ -596,6 +596,43 @@ class SlackServiceTest < ActiveSupport::TestCase
     assert_equal "333.444", item.reload.slack_message_ts
   end
 
+  test "post_duplicate_hint replies in the thread with links and outcomes" do
+    service = SlackService.new
+    client = FakeSlackClient.new
+    service.instance_variable_set(:@client, client)
+    trashed = items(:killed_item)
+    original_url = ENV["APP_INTERNAL_URL"]
+    ENV["APP_INTERNAL_URL"] = "https://gunky.test/"
+
+    service.post_duplicate_hint([ trashed ], channel: "C1", thread_ts: "1.2")
+
+    call = client.post_calls.first
+    assert_equal "C1", call[:channel]
+    assert_equal "1.2", call[:thread_ts]
+    assert_not call.key?(:reply_broadcast)
+    assert_includes call[:text], "<https://gunky.test/items/#{trashed.id}|Broken monitor>"
+    assert_includes call[:text], "trashed"
+  ensure
+    ENV["APP_INTERNAL_URL"] = original_url
+  end
+
+  test "post_duplicate_hint omits links without APP_INTERNAL_URL and escapes text" do
+    service = SlackService.new
+    client = FakeSlackClient.new
+    service.instance_variable_set(:@client, client)
+    original_url = ENV.delete("APP_INTERNAL_URL")
+    earlier = Item.create!(description: "Cables <HDMI> & DVI")
+
+    service.post_duplicate_hint([ earlier ], channel: "C1", thread_ts: "1.2")
+
+    text = client.post_calls.first[:text]
+    assert_includes text, "Cables &lt;HDMI&gt; &amp; DVI"
+    assert_includes text, "still pending"
+    assert_not_includes text, "<http"
+  ensure
+    ENV["APP_INTERNAL_URL"] = original_url
+  end
+
   class FakeSlackClient
     attr_reader :post_calls, :update_calls, :delete_calls, :ephemeral_calls
 

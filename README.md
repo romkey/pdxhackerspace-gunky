@@ -78,10 +78,16 @@ docker compose exec web bash          # or: docker exec -it <container> bash
 11. Set `APP_HOST` for image URLs used in Slack messages (host or host:port). Optionally set `APP_PROTOCOL` (`http` or `https`).
 12. Set `APP_INTERNAL_URL` to the full base URL used in expiry outcome Slack links (for example `https://gunky.example.org`).
 13. Optional: set `SENTRY_DSN` (or `SENTRY_ENDPOINT`) to enable Sentry error reporting for web and Sidekiq.
+14. Optional: set `DUPLICATE_HINTS_ENABLED` to any value to post duplicate hints (see below). Unset, the check only logs what it would have posted.
+15. Optional: set `DUPLICATE_HINT_MIN_RANK` to the minimum match rank from 0 to 1 (default `0.2`).
 
 ### Lost+Found
 
 Lost+Found is an optional phase before the normal Gunky giveaway flow. Upload an item on the lost+found domain and it posts to the lost+found Slack channel with a **This is mine** button. Unclaimed items are promoted to Gunky after the hold period (default 14 days, configurable under **Settings → Lost+Found**). Claimed items must be picked up within the pickup deadline (default 7 days) or they are promoted to Gunky as well. Promoted items enter the normal Gunky poll and are flagged as having been lost+found.
+
+### Duplicate hints
+
+After an item's poll is posted, Gunky compares it with items from the same site posted in the previous 60 days and, if any look like the same thing, replies once in the poll's thread saying how each turned out. Run `bin/rails "gunky:duplicate_hints:report[14]"` to see recent items' closest matches and pick `DUPLICATE_HINT_MIN_RANK` before setting `DUPLICATE_HINTS_ENABLED`.
 
 ### Running Tests
 

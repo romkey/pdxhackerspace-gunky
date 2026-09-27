@@ -26,6 +26,8 @@ class DescribeItemJob < ApplicationJob
       partial: "items/description",
       locals: { item: item }
     )
+
+    CheckDuplicatesJob.perform_later(item.id)
   rescue OllamaService::Error => e
     Rails.logger.error("DescribeItemJob: Ollama failed for item #{item_id}: #{e.message}")
     raise
