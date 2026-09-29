@@ -4,7 +4,8 @@
   data: {
     controller: "photo-ai",
     photo_ai_upload_url_value: preview_photo_items_path,
-    photo_ai_describe_url_value: preview_description_items_path
+    photo_ai_describe_url_value: preview_description_items_path,
+    photo_ai_agent_enabled_value: AgentSetting.enabled?
   }
 ) do |f| %>
   <% if item.errors.any? %>
@@ -64,6 +65,16 @@
   <div class="mb-3">
     <%= f.label :description, class: "form-label" %>
     <%= f.text_area :description, class: "form-control", rows: 3, placeholder: "What is this item? Leave blank and the AI agent will describe it from the photo.", data: { photo_ai_target: "description" } %>
+    <% if AgentSetting.enabled? %>
+      <button
+        type="button"
+        class="btn btn-outline-info btn-sm mt-2 d-none"
+        data-photo-ai-target="retryButton"
+        data-action="photo-ai#retryDescription"
+      >
+        Retry AI description
+      </button>
+    <% end %>
   </div>
 
   <% if lost_found_site? %>
@@ -84,15 +95,24 @@
     </div>
   <% end %>
 
-  <div class="mb-3 d-none" data-photo-ai-target="quickCreateWrapper">
-    <button type="submit" name="create_and_add_another" value="1" class="btn btn-success w-100" data-photo-ai-target="submit">
-      Create Item & Add Another
-    </button>
-    <div class="form-text mt-1">Saves this item and jumps right back to a fresh New Item form.</div>
-  </div>
+  <% if item.new_record? %>
+    <div class="mb-3 d-flex flex-column gap-2">
+      <button type="submit" name="create_and_add_another" value="1" class="btn btn-success w-100" data-photo-ai-target="submit">
+        Create Item &amp; Add Another
+      </button>
+      <button type="submit" name="create_print_and_add_another" value="1" class="btn btn-outline-success w-100" data-photo-ai-target="submit">
+        Create Item, Print Receipt &amp; Add Another
+      </button>
+      <div class="form-text">Saves this item and opens a fresh New Item form.</div>
+    </div>
 
-  <div class="d-flex flex-wrap gap-2">
-    <%= f.submit class: "btn btn-primary", data: { photo_ai_target: "submit" } %>
-    <%= link_to "Cancel", items_path, class: "btn btn-outline-secondary" %>
-  </div>
+    <div class="d-flex flex-wrap gap-2">
+      <%= link_to "Cancel", items_path, class: "btn btn-outline-secondary" %>
+    </div>
+  <% else %>
+    <div class="d-flex flex-wrap gap-2">
+      <%= f.submit class: "btn btn-primary", data: { photo_ai_target: "submit" } %>
+      <%= link_to "Cancel", items_path, class: "btn btn-outline-secondary" %>
+    </div>
+  <% end %>
 <% end %>

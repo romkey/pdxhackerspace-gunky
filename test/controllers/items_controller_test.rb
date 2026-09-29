@@ -394,6 +394,9 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     get new_item_path
     assert_select "form"
     assert_select "textarea[name='item[description]']"
+    assert_select "button[name='create_and_add_another']", text: /Create Item & Add Another/
+    assert_select "button[name='create_print_and_add_another']", text: /Print Receipt & Add Another/
+    assert_select "input[type='submit'][name='commit']", count: 0
   end
 
   # Create
@@ -402,8 +405,8 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     assert_difference "Item.count", 1 do
       post items_path, params: { item: { description: "New junk", location: "Hallway" } }
     end
-    assert_redirected_to item_path(Item.last)
-    assert_equal "Item was successfully created.", flash[:notice]
+    assert_redirected_to new_item_path
+    assert_equal "Item was successfully created. Add the next one.", flash[:notice]
   end
 
   test "create with add another redirects back to new item form" do
@@ -416,6 +419,36 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to new_item_path
     assert_equal "Item was successfully created. Add the next one.", flash[:notice]
+  end
+
+  test "create print and add another queues receipt when printer configured" do
+    PrintSetting.instance.update!(cups_queue: "TestPrinter", paper_width_mm: 80)
+
+    assert_difference "Item.count", 1 do
+      post items_path, params: {
+        item: { description: "Labeled bin", location: "Shelf B" },
+        create_print_and_add_another: "1"
+      }
+    end
+
+    assert_redirected_to new_item_path
+    assert_match(/Add the next one/i, flash[:notice].to_s)
+    assert_match(/Receipt queued on TestPrinter/i, flash[:notice].to_s)
+  end
+
+  test "create print and add another still saves when printer unset" do
+    PrintSetting.instance.update!(cups_queue: nil)
+
+    assert_difference "Item.count", 1 do
+      post items_path, params: {
+        item: { description: "Unlabeled box", location: "Shelf C" },
+        create_print_and_add_another: "1"
+      }
+    end
+
+    assert_redirected_to new_item_path
+    assert_match(/Add the next one/i, flash[:notice].to_s)
+    assert_match(/settings/i, flash[:alert].to_s)
   end
 
   test "create allows blank description when pre-uploaded signed photo is provided" do
@@ -431,7 +464,7 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
 
     created_item = Item.last
     assert created_item.photo.attached?
-    assert_redirected_to item_path(created_item)
+    assert_redirected_to new_item_path
   end
 
   test "create sets default expiration" do
@@ -554,7 +587,7 @@ class ItemsControllerTest < ActionDispatch::IntegrationTest
     created_item = Item.last
     assert created_item.photo.attached?
     assert_equal "car", created_item.description
-    assert_redirected_to item_path(created_item)
+    assert_redirected_to new_item_path
   ensure
     file&.close
     file&.unlink

@@ -56,11 +56,7 @@ class ItemsController < ApplicationController
           Rails.logger.info("AI agent disabled, skipping DescribeItemJob for item #{@item.id}")
         end
       end
-      if params[:create_and_add_another].present?
-        redirect_to new_item_path, notice: "Item was successfully created. Add the next one."
-      else
-        redirect_to item_path(@item), notice: "Item was successfully created."
-      end
+      redirect_after_create_success
     else
       @locations = Location.sorted
       @lost_found_hold_until = lost_found_hold_until_date if lost_found_site?
@@ -124,15 +120,11 @@ class ItemsController < ApplicationController
   end
 
   def print
-    setting = PrintSetting.instance
-    if setting.cups_queue.blank?
-      redirect_to item_path(@item), alert: "Set the CUPS printer queue in Settings → Thermal printer."
-      return
-    end
-
-    result = LpPrintService.new(printer: setting.cups_queue, paper_width_mm: setting.paper_width_mm).print_items([ @item ])
-    if result.success?
-      redirect_to item_path(@item), notice: "Receipt queued on #{setting.cups_queue}."
+    result = queue_item_receipt_print(@item)
+    if result == :missing_queue
+      redirect_to item_path(@item), alert: thermal_printer_unconfigured_message
+    elsif result.success?
+      redirect_to item_path(@item), notice: "Receipt queued on #{PrintSetting.instance.cups_queue}."
     else
       redirect_to item_path(@item), alert: "Print failed: #{result.error_message}"
     end
@@ -531,6 +523,35 @@ class ItemsController < ApplicationController
       filename: photo.respond_to?(:original_filename) ? photo.original_filename : "upload.jpg",
       content_type: photo.respond_to?(:content_type) ? photo.content_type : nil
     )
+  end
+
+  def redirect_after_create_success
+    notice = "Item was successfully created. Add the next one."
+
+    if params[:create_print_and_add_another].present?
+      print_result = queue_item_receipt_print(@item)
+      if print_result == :missing_queue
+        redirect_to new_item_path, notice: notice, alert: thermal_printer_unconfigured_message
+      elsif print_result.success?
+        redirect_to new_item_path,
+                    notice: "#{notice} Receipt queued on #{PrintSetting.instance.cups_queue}."
+      else
+        redirect_to new_item_path, notice: notice, alert: "Print failed: #{print_result.error_message}"
+      end
+    else
+      redirect_to new_item_path, notice: notice
+    end
+  end
+
+  def queue_item_receipt_print(item)
+    setting = PrintSetting.instance
+    return :missing_queue if setting.cups_queue.blank?
+
+    LpPrintService.new(printer: setting.cups_queue, paper_width_mm: setting.paper_width_mm).print_items([ item ])
+  end
+
+  def thermal_printer_unconfigured_message
+    "Set the CUPS printer queue in Settings → Thermal printer."
   end
 
   def find_preview_blob(signed_id)

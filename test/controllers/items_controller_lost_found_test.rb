@@ -55,7 +55,7 @@ class ItemsControllerLostFoundTest < ActionDispatch::IntegrationTest
     item = Item.order(:id).last
     assert item.lost_found_unclaimed?
     assert_equal 14.days.from_now.to_date, item.lost_found_hold_until
-    assert_redirected_to item_path(item)
+    assert_redirected_to new_item_path
   end
 
   test "create on lost+found host uses default location when blank" do

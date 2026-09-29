@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.20.3] - 2026-09-29
+
+### Added
+
+- New Item form: always offers “Create Item & Add Another” and “Create Item, Print Receipt & Add Another”
+- Retry AI description button under the description field when a photo is ready
+
+### Changed
+
+- Creating an item always returns to the New Item form (no separate Create-only submit)
+
 ## [0.20.2] - 2026-09-29
 
 ### Fixed

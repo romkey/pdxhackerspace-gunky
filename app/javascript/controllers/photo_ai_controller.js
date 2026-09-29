@@ -1,17 +1,21 @@
 import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
-  static targets = ["description", "photoInput", "status", "preview", "previewWrapper", "quickCreateWrapper", "submit"]
+  static targets = ["description", "photoInput", "status", "preview", "previewWrapper", "retryButton", "submit"]
   static values = {
     uploadUrl: String,
-    describeUrl: String
+    describeUrl: String,
+    agentEnabled: Boolean
   }
 
   connect() {
     this.originalPhotoInputName = this.photoInputTargets[0]?.name || "item[photo]"
     this.previewObjectUrl = null
     this.uploadInProgress = false
-    this.hideQuickCreate()
+    this.currentSignedId = this.hiddenPhotoSignedId()
+    if (this.agentEnabledValue && this.currentSignedId) {
+      this.showRetryButton()
+    }
     this.element.addEventListener("submit", this.handleSubmit)
   }
 
@@ -47,9 +51,13 @@ export default class extends Controller {
         throw new Error("Photo upload did not return a file reference. Try again.")
       }
 
+      this.currentSignedId = uploadData.signed_id
       this.ensureHiddenPhotoField().value = uploadData.signed_id
       this.clearPhotoInputNames()
       this.updateStatus("Photo uploaded. Generating AI description...")
+      if (this.agentEnabledValue) {
+        this.showRetryButton()
+      }
 
       this.uploadInProgress = false
       this.setSubmitDisabled(false)
@@ -65,23 +73,41 @@ export default class extends Controller {
     }
   }
 
-  async describePhoto(signedId) {
+  async retryDescription(event) {
+    event.preventDefault()
+
+    const signedId = this.currentSignedId || this.hiddenPhotoSignedId()
+    if (!signedId) {
+      this.updateStatus("Upload a photo before retrying AI description.", true)
+      return
+    }
+
+    this.setRetryDisabled(true)
+    this.updateStatus("Generating AI description...")
+
+    try {
+      await this.describePhoto(signedId, { forceDescription: true })
+    } finally {
+      this.setRetryDisabled(false)
+    }
+  }
+
+  async describePhoto(signedId, { forceDescription = false } = {}) {
     try {
       const data = await this.requestDescribe(signedId)
 
-      if (this.descriptionTarget.value.trim() === "" && data.description) {
+      if (data.description && (forceDescription || this.descriptionTarget.value.trim() === "")) {
         this.descriptionTarget.value = data.description
-        this.showQuickCreate()
-      } else {
-        this.hideQuickCreate()
       }
 
       if (data.ai_error) {
         this.updateStatus(`Photo uploaded. AI description failed: ${data.ai_error}`, true)
       } else if (data.description) {
         this.updateStatus("Photo uploaded and AI description is ready.")
-      } else {
+      } else if (this.agentEnabledValue) {
         this.updateStatus("Photo uploaded. AI description is unavailable because the AI agent is disabled.")
+      } else {
+        this.updateStatus("Photo uploaded.")
       }
     } catch (error) {
       this.updateStatus(`Photo uploaded. AI description failed: ${error.message}`, true)
@@ -138,6 +164,12 @@ export default class extends Controller {
     })
   }
 
+  hiddenPhotoSignedId() {
+    const hiddenField = this.element.querySelector("input[data-photo-ai-hidden='true']")
+      || this.element.querySelector("input[data-photo-ai-target='hiddenPhoto']")
+    return hiddenField?.value || null
+  }
+
   ensureHiddenPhotoField() {
     let hiddenField = this.element.querySelector("input[data-photo-ai-hidden='true']")
 
@@ -155,6 +187,7 @@ export default class extends Controller {
   removeHiddenPhotoField() {
     const hiddenField = this.element.querySelector("input[data-photo-ai-hidden='true']")
     hiddenField?.remove()
+    this.currentSignedId = this.hiddenPhotoSignedId()
   }
 
   csrfToken() {
@@ -208,13 +241,14 @@ export default class extends Controller {
     })
   }
 
-  showQuickCreate() {
-    if (!this.hasQuickCreateWrapperTarget) return
-    this.quickCreateWrapperTarget.classList.remove("d-none")
+  setRetryDisabled(disabled) {
+    if (!this.hasRetryButtonTarget) return
+
+    this.retryButtonTarget.disabled = disabled
   }
 
-  hideQuickCreate() {
-    if (!this.hasQuickCreateWrapperTarget) return
-    this.quickCreateWrapperTarget.classList.add("d-none")
+  showRetryButton() {
+    if (!this.hasRetryButtonTarget) return
+    this.retryButtonTarget.classList.remove("d-none")
   }
 }
