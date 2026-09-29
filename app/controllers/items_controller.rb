@@ -5,6 +5,7 @@ class ItemsController < ApplicationController
 
   LOST_FOUND_FILTERS = {
     "unclaimed" => :lost_found_unclaimed,
+    "awaiting_pickup" => :lost_found_claimed,
     "claimed" => :lost_found_claimed,
     "picked_up" => :lost_found_picked_up,
     "promoted" => :lost_found_promoted

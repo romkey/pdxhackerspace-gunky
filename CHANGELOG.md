@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.20.4] - 2026-09-29
+
+### Added
+
+- Lost+Found navbar links for **Awaiting pickup** and **Picked up**, each listing only items in that state
+
+### Changed
+
+- Lost+Found index filter tab **Claimed** renamed to **Awaiting pickup** (legacy `claimed` URLs still work)
+
 ## [0.20.3] - 2026-09-29
 
 ### Added
