@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.20.2] - 2026-09-29
+
+### Fixed
+
+- OpenAI-compatible vision (LiteLLM): resize and convert photos to JPEG before sending, longer default read timeout, and `max_tokens` on chat/completions requests
+- Item pages show an error when AI description fails after retries instead of staying on “AI is analyzing…”
+- Production Docker image includes HEIF libraries so libvips can decode iPhone HEIC at AI describe time
+
+### Changed
+
+- Settings → AI Agent help text clarifies LiteLLM base URL vs `/chat/completions`
+- Document AI request timeout env vars in `.env.example`
+
 ## [0.20.1] - 2026-09-27
 
 ### Fixed

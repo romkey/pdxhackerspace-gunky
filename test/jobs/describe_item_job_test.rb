@@ -27,6 +27,27 @@ class DescribeItemJobTest < ActiveJob::TestCase
     assert_no_enqueued_jobs(only: CheckDuplicatesJob)
   end
 
+  test "broadcasts AI failure to the item page after retries are exhausted" do
+    broadcasts = []
+    capture_broadcast = proc do |*_args, **kwargs|
+      broadcasts << kwargs
+    end
+    failing = proc { |_photo| raise OllamaService::Error, "AI endpoint read timed out" }
+
+    with_overridden_instance_method(Item, :broadcast_replace_to, capture_broadcast) do
+      with_overridden_instance_method(OllamaService, :describe_image, failing) do
+        AgentSetting.instance.update!(enabled: true)
+        assert_performed_jobs 3, only: DescribeItemJob do
+          DescribeItemJob.perform_later(@item.id)
+        end
+      end
+    end
+
+    assert_equal 1, broadcasts.length
+    assert_equal @item.id, broadcasts.first[:locals][:item].id
+    assert_match(/timed out/, broadcasts.first[:locals][:ai_error])
+  end
+
   private
 
   def with_described_image(text, &block)

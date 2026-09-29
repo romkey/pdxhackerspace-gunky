@@ -1,7 +1,19 @@
 class DescribeItemJob < ApplicationJob
   queue_as :default
 
-  retry_on OllamaService::Error, wait: 30.seconds, attempts: 3
+  retry_on OllamaService::Error, wait: 30.seconds, attempts: 3 do |job, error|
+    item_id = job.arguments.first
+    item = Item.find_by(id: item_id)
+    next unless item
+
+    Rails.logger.error("DescribeItemJob: AI failed for item #{item_id} after retries: #{error.message}")
+    item.broadcast_replace_to(
+      "item_#{item.id}",
+      target: "item_description",
+      partial: "items/description",
+      locals: { item: item, ai_error: error.message }
+    )
+  end
 
   def perform(item_id, force: false)
     item = Item.find_by(id: item_id)

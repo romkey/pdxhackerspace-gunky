@@ -6,7 +6,10 @@ class OllamaService
   class Error < StandardError; end
 
   OPEN_TIMEOUT_SECONDS = ENV.fetch("OLLAMA_OPEN_TIMEOUT_SECONDS", 5).to_i
-  READ_TIMEOUT_SECONDS = ENV.fetch("OLLAMA_READ_TIMEOUT_SECONDS", 30).to_i
+  READ_TIMEOUT_SECONDS = ENV.fetch("OLLAMA_READ_TIMEOUT_SECONDS", 90).to_i
+  VISION_JPEG_MAX_EDGE = 1024
+  VISION_JPEG_QUALITY = 80
+  MAX_COMPLETION_TOKENS = 300
 
   def initialize(settings = nil)
     @settings = settings || AgentSetting.instance
@@ -28,7 +31,8 @@ class OllamaService
       }
     )
 
-    image_data = Base64.strict_encode64(image_blob.download)
+    jpeg_bytes = jpeg_bytes_for_vision(image_blob)
+    image_data = Base64.strict_encode64(jpeg_bytes)
 
     payload = {
       model: @settings.ollama_model,
@@ -41,6 +45,7 @@ class OllamaService
           ]
         }
       ],
+      max_tokens: MAX_COMPLETION_TOKENS,
       stream: false
     }
 
@@ -129,6 +134,15 @@ class OllamaService
       }.merge(extra_metadata),
       succeeded: false
     )
+  end
+
+  def jpeg_bytes_for_vision(image_blob)
+    raw = image_blob.download
+    image = Vips::Image.thumbnail_buffer(raw, VISION_JPEG_MAX_EDGE, size: :down)
+    image.jpegsave_buffer(Q: VISION_JPEG_QUALITY, strip: true)
+  rescue Vips::Error => e
+    content_type = image_blob.respond_to?(:content_type) ? image_blob.content_type : "unknown"
+    raise Error, "Could not convert photo (#{content_type}) to JPEG: #{e.message}"
   end
 
   def response_text(parsed)

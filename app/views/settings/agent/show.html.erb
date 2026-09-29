@@ -22,7 +22,12 @@
       <div class="mb-3">
         <%= f.label :ollama_url, "OpenAI-compatible API URL", class: "form-label" %>
         <%= f.text_field :ollama_url, class: "form-control", placeholder: "http://localhost:11434" %>
-        <div class="form-text">The base URL of your AI endpoint. Requests are sent to the /v1/chat/completions path.</div>
+        <div class="form-text">
+          LiteLLM and other OpenAI-compatible gateways: use the base URL (for example
+          <code>https://litellm.example.com</code>) or a URL ending in <code>/v1</code>.
+          Do not paste a full <code>/chat/completions</code> path — the app appends
+          <code>/v1/chat/completions</code> automatically.
+        </div>
       </div>
 
       <div class="mb-3">

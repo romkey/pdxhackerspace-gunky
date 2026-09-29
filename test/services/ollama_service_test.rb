@@ -1,4 +1,5 @@
 require "test_helper"
+require "base64"
 
 class OllamaServiceTest < ActiveSupport::TestCase
   test "describe_image sends api key when configured" do
@@ -11,7 +12,7 @@ class OllamaServiceTest < ActiveSupport::TestCase
     http = FakeHttp.new
 
     with_fake_http(http) do
-      description = OllamaService.new(settings).describe_image(FakeBlob.new("fake image"))
+      description = OllamaService.new(settings).describe_image(FakeBlob.jpeg)
 
       assert_equal "A red toolbox.", description
       assert_equal "Bearer secret-key", http.last_request["Authorization"]
@@ -29,7 +30,7 @@ class OllamaServiceTest < ActiveSupport::TestCase
     http = FakeHttp.new
 
     with_fake_http(http) do
-      OllamaService.new(settings).describe_image(FakeBlob.new("fake image"))
+      OllamaService.new(settings).describe_image(FakeBlob.jpeg)
 
       assert_nil http.last_request["Authorization"]
     end
@@ -45,17 +46,95 @@ class OllamaServiceTest < ActiveSupport::TestCase
     http = FakeHttp.new
 
     with_fake_http(http) do
-      OllamaService.new(settings).describe_image(FakeBlob.new("fake image"))
+      OllamaService.new(settings).describe_image(FakeBlob.jpeg)
 
       payload = JSON.parse(http.last_request.body)
       assert_equal "llava", payload["model"]
       assert_equal false, payload["stream"]
+      assert_equal OllamaService::MAX_COMPLETION_TOKENS, payload["max_tokens"]
       assert_equal "user", payload.dig("messages", 0, "role")
       assert_equal "text", payload.dig("messages", 0, "content", 0, "type")
       assert_equal "Describe this", payload.dig("messages", 0, "content", 0, "text")
       assert_equal "image_url", payload.dig("messages", 0, "content", 1, "type")
       assert_match %r{\Adata:image/jpeg;base64,}, payload.dig("messages", 0, "content", 1, "image_url", "url")
     end
+  end
+
+  test "describe_image downscales large photos to jpeg before sending" do
+    settings = AgentSetting.new(
+      ollama_url: "http://ollama.example.test",
+      ollama_model: "llava",
+      prompt: "Describe this"
+    )
+    http = FakeHttp.new
+    large_jpeg = Vips::Image.black(3000, 2000).jpegsave_buffer
+
+    with_fake_http(http) do
+      OllamaService.new(settings).describe_image(FakeBlob.new(large_jpeg, "image/jpeg"))
+
+      payload = JSON.parse(http.last_request.body)
+      url = payload.dig("messages", 0, "content", 1, "image_url", "url")
+      encoded = url.sub(%r{\Adata:image/jpeg;base64,}, "")
+      sent = Vips::Image.new_from_buffer(Base64.strict_decode64(encoded), "")
+
+      assert_operator sent.width, :<=, OllamaService::VISION_JPEG_MAX_EDGE
+      assert_operator sent.height, :<=, OllamaService::VISION_JPEG_MAX_EDGE
+    end
+  end
+
+  test "describe_image converts png photos to jpeg before sending" do
+    settings = AgentSetting.new(
+      ollama_url: "http://ollama.example.test",
+      ollama_model: "llava",
+      prompt: "Describe this"
+    )
+    http = FakeHttp.new
+    png_bytes = Vips::Image.black(120, 90).pngsave_buffer
+
+    with_fake_http(http) do
+      OllamaService.new(settings).describe_image(FakeBlob.new(png_bytes, "image/png"))
+
+      payload = JSON.parse(http.last_request.body)
+      url = payload.dig("messages", 0, "content", 1, "image_url", "url")
+      assert_match %r{\Adata:image/jpeg;base64,}, url
+      decoded = Base64.strict_decode64(url.sub(%r{\Adata:image/jpeg;base64,}, ""))
+      assert_operator decoded.bytesize, :>, 0
+      assert_equal "image/jpeg", Marcel::MimeType.for(decoded)
+    end
+  end
+
+  test "describe_image converts heic photos to jpeg when libvips supports heif" do
+    skip "libvips has no HEIF loader" unless heif_supported?
+
+    settings = AgentSetting.new(
+      ollama_url: "http://ollama.example.test",
+      ollama_model: "llava",
+      prompt: "Describe this"
+    )
+    http = FakeHttp.new
+    heic_bytes = heic_fixture_bytes
+
+    with_fake_http(http) do
+      OllamaService.new(settings).describe_image(FakeBlob.new(heic_bytes, "image/heic"))
+
+      payload = JSON.parse(http.last_request.body)
+      url = payload.dig("messages", 0, "content", 1, "image_url", "url")
+      assert_match %r{\Adata:image/jpeg;base64,}, url
+    end
+  end
+
+  test "describe_image raises readable error when photo cannot be decoded" do
+    settings = AgentSetting.new(
+      ollama_url: "http://ollama.example.test",
+      ollama_model: "llava",
+      prompt: "Describe this"
+    )
+
+    error = assert_raises(OllamaService::Error) do
+      OllamaService.new(settings).describe_image(FakeBlob.new("not an image", "image/jpeg"))
+    end
+
+    assert_match(/Could not convert photo \(image\/jpeg\) to JPEG/, error.message)
   end
 
   test "describe_image appends chat completions path to v1 base url" do
@@ -67,7 +146,7 @@ class OllamaServiceTest < ActiveSupport::TestCase
     http = FakeHttp.new
 
     with_fake_http(http) do
-      OllamaService.new(settings).describe_image(FakeBlob.new("fake image"))
+      OllamaService.new(settings).describe_image(FakeBlob.jpeg)
 
       assert_equal "/v1/chat/completions", http.last_request.path
     end
@@ -82,7 +161,7 @@ class OllamaServiceTest < ActiveSupport::TestCase
     http = FakeHttp.new
 
     with_fake_http(http) do
-      OllamaService.new(settings).describe_image(FakeBlob.new("fake image"))
+      OllamaService.new(settings).describe_image(FakeBlob.jpeg)
 
       assert_equal "/openai/v1/chat/completions", http.last_request.path
     end
@@ -99,7 +178,7 @@ class OllamaServiceTest < ActiveSupport::TestCase
 
     with_fake_http(http) do
       error = assert_raises(OllamaService::Error) do
-        OllamaService.new(settings).describe_image(FakeBlob.new("fake image"))
+        OllamaService.new(settings).describe_image(FakeBlob.jpeg)
       end
 
       assert_match(/read timed out after #{OllamaService::READ_TIMEOUT_SECONDS}s/, error.message)
@@ -118,7 +197,7 @@ class OllamaServiceTest < ActiveSupport::TestCase
 
     with_fake_http(http) do
       error = assert_raises(OllamaService::Error) do
-        OllamaService.new(settings).describe_image(FakeBlob.new("fake image"))
+        OllamaService.new(settings).describe_image(FakeBlob.jpeg)
       end
 
       assert_match(/invalid JSON/, error.message)
@@ -127,7 +206,11 @@ class OllamaServiceTest < ActiveSupport::TestCase
 
   private
 
-  FakeBlob = Data.define(:download) do
+  FakeBlob = Data.define(:download, :content_type) do
+    def self.jpeg
+      new(Vips::Image.black(40, 30).jpegsave_buffer, "image/jpeg")
+    end
+
     def byte_size
       download.bytesize
     end
@@ -147,6 +230,16 @@ class OllamaServiceTest < ActiveSupport::TestCase
         response.instance_variable_set(:@body, body)
       end
     end
+  end
+
+  def heif_supported?
+    Vips.get_suffixes.any? { |suffix| suffix.match?(/heic|heif/i) }
+  end
+
+  def heic_fixture_bytes
+    Vips::Image.black(80, 60).heifsave_buffer
+  rescue Vips::Error
+    skip "libvips cannot encode HEIF in this environment"
   end
 
   def with_fake_http(http)
