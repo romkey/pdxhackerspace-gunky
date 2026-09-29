@@ -151,4 +151,44 @@ class ItemsControllerLostFoundTest < ActionDispatch::IntegrationTest
     assert_select "h5.card-title", text: /Old soldering iron/
     assert_select "h5.card-title", text: /Mystery backpack/, count: 0
   end
+
+  test "lost+found index awaiting pickup filter shows only claimed items" do
+    host! @lost_found_host
+    get items_path(disposition: "awaiting_pickup")
+
+    assert_response :success
+    assert_select "a.nav-link.active", text: "Awaiting pickup", count: 2
+    assert_select "h5.card-title", text: /USB-C cable bundle/
+    assert_select "h5.card-title", text: /Leftover lunch container/
+    assert_select "h5.card-title", text: /Mystery backpack/, count: 0
+    assert_select "h5.card-title", text: /House keys on lanyard/, count: 0
+  end
+
+  test "lost+found index picked up filter shows only picked up items" do
+    host! @lost_found_host
+    get items_path(disposition: "picked_up")
+
+    assert_response :success
+    assert_select "a.nav-link.active", text: "Picked up", count: 2
+    assert_select "h5.card-title", text: /House keys on lanyard/
+    assert_select "h5.card-title", text: /Mystery backpack/, count: 0
+    assert_select "h5.card-title", text: /USB-C cable bundle/, count: 0
+  end
+
+  test "legacy claimed disposition filter matches awaiting pickup" do
+    host! @lost_found_host
+    get items_path(disposition: "claimed")
+
+    assert_response :success
+    assert_select "h5.card-title", text: /USB-C cable bundle/
+    assert_select "a.nav-link.active", text: "Awaiting pickup", count: 2
+  end
+
+  test "lost+found navbar includes awaiting pickup and picked up links" do
+    host! @lost_found_host
+    get items_path
+
+    assert_select "a.nav-link[href='#{items_path(disposition: 'awaiting_pickup')}']", text: "Awaiting pickup"
+    assert_select "a.nav-link[href='#{items_path(disposition: 'picked_up')}']", text: "Picked up"
+  end
 end

@@ -21,7 +21,7 @@
   </li>
   <% lost_found_filter_tabs.each do |label, filter| %>
     <li class="nav-item">
-      <%= link_to label, items_path(disposition: filter, q: @query.presence), class: "nav-link #{index_tab_active?(filter) ? 'active' : ''}" %>
+      <%= link_to label, items_path(disposition: filter, q: @query.presence), class: "nav-link #{lost_found_nav_active?(filter) ? 'active' : ''}" %>
     </li>
   <% end %>
 </ul>
