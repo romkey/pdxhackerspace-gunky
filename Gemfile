@@ -40,7 +40,7 @@ gem "redis", ">= 4.0.1", "< 6"
 gem "sidekiq"
 gem "sidekiq-cron"
 gem "sentry-rails", "~> 7.0"
-gem "sentry-sidekiq", "~> 7.0"
+gem "sentry-sidekiq", "~> 7.1"
 gem "slack-ruby-client"
 gem "pagy"
 # json 3.x changed JSON.parse arity and breaks ActiveSupport::JSON.decode in Rails 8.1.3.1
