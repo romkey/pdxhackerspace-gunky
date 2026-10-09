@@ -28,6 +28,20 @@ class ItemsControllerLostFoundTest < ActionDispatch::IntegrationTest
     assert_select "h5.card-title", text: /Old printer/, count: 0
   end
 
+  test "lost+found navbar links to the to-move list" do
+    host! @lost_found_host
+    get items_path
+
+    assert_select "nav a.nav-link[href='#{lost_found_moves_path}']", text: "To move"
+  end
+
+  test "gunky navbar does not link to the to-move list" do
+    host! @gunky_host
+    get items_path
+
+    assert_select "nav a.nav-link[href='#{lost_found_moves_path}']", count: 0
+  end
+
   test "gunky index excludes in-phase lost+found items" do
     host! @gunky_host
     get items_path

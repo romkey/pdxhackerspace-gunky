@@ -7,6 +7,16 @@ Rails.application.routes.draw do
   resources :winners, only: [ :index ]
   get "killed", to: "killed#index", as: :killed
 
+  resources :lost_found_moves, path: "to-move", only: [ :index ] do
+    member do
+      post :dismiss
+    end
+
+    collection do
+      post :dismiss_selected
+    end
+  end
+
   resources :items do
     collection do
       post :preview_photo

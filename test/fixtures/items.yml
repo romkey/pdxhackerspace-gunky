@@ -113,3 +113,13 @@ lost_found_promoted_item:
   lost_found_state: 4
   lost_found_hold_until: <%= 14.days.ago.to_date %>
   lost_found_promoted_at: <%= 1.day.ago %>
+
+lost_found_promoted_moved_item:
+  description: Box of resistors
+  location: Workshop
+  expiration_date: <%= 7.days.from_now.to_date %>
+  disposition: 0
+  lost_found_state: 4
+  lost_found_hold_until: <%= 20.days.ago.to_date %>
+  lost_found_promoted_at: <%= 6.days.ago %>
+  lost_found_moved_at: <%= 5.days.ago %>

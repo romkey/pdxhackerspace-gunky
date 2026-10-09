@@ -41,6 +41,10 @@ class Item < ApplicationRecord
     ])
   }
 
+  # Promoted items still sitting on the lost+found shelf that need to be
+  # physically moved to the Gunky area.
+  scope :lost_found_to_move, -> { lost_found_promoted.where(lost_found_moved_at: nil) }
+
   scope :lost_found_hold_elapsed, -> {
     lost_found_unclaimed.where(lost_found_hold_until: ..Date.current)
   }
@@ -188,6 +192,10 @@ class Item < ApplicationRecord
       lost_found_promoted_at: Time.current,
       expiration_date: self.class.gunky_poll_expiration_date
     )
+  end
+
+  def mark_lost_found_moved!
+    update!(lost_found_moved_at: Time.current)
   end
 
   def owned?

@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+
+- Lost+Found navbar link **To move** listing items promoted to Gunky that still need to be physically moved off the Lost+Found shelf
+- **Dismiss** button on each item to mark it moved, plus a **Select** mode with checkboxes and a bulk **Dismiss** for the checked items
+
 ## [0.20.4] - 2026-09-29
 
 ### Added

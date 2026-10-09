@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_27_150000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_09_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -67,6 +67,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_27_150000) do
     t.string "lost_found_claimed_by"
     t.string "lost_found_claimed_by_slack_user_id"
     t.date "lost_found_hold_until"
+    t.datetime "lost_found_moved_at"
     t.datetime "lost_found_picked_up_at"
     t.date "lost_found_pickup_deadline"
     t.datetime "lost_found_posted_at"

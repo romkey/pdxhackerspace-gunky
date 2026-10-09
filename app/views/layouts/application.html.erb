@@ -43,7 +43,7 @@
           <ul class="navbar-nav me-auto">
             <% if lost_found_site? %>
               <li class="nav-item">
-                <%= link_to "Lost+Found", items_path, class: "nav-link #{'active' if params[:disposition].blank?}" %>
+                <%= link_to "Lost+Found", items_path, class: "nav-link #{'active' if controller_name == 'items' && params[:disposition].blank?}" %>
               </li>
               <li class="nav-item">
                 <%= link_to "Awaiting pickup", items_path(disposition: :awaiting_pickup),
@@ -52,6 +52,10 @@
               <li class="nav-item">
                 <%= link_to "Picked up", items_path(disposition: :picked_up),
                       class: "nav-link #{lost_found_nav_active?(:picked_up) ? 'active' : ''}" %>
+              </li>
+              <li class="nav-item">
+                <%= link_to "To move", lost_found_moves_path,
+                      class: "nav-link #{controller_name == 'lost_found_moves' ? 'active' : ''}" %>
               </li>
               <li class="nav-item">
                 <%= link_to "New Item", new_item_path, class: "nav-link" %>
