@@ -9,7 +9,7 @@ on:
         description: "Version bump (none = just build the selected ref)"
         type: choice
         options: [ none, patch, minor, major ]
-        default: none
+        default: patch
 
 permissions:
   contents: read
@@ -21,7 +21,7 @@ concurrency:
 jobs:
   bump:
     if: github.event_name == 'workflow_dispatch' && inputs.bump != 'none'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     outputs:
@@ -80,7 +80,7 @@ jobs:
   build:
     needs: bump
     if: ${{ !cancelled() && needs.bump.result != 'failure' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
