@@ -14,6 +14,28 @@ class LostFoundMovesControllerTest < ActionDispatch::IntegrationTest
     assert_select "button", text: "Select"
   end
 
+  test "index shows a thumbnail for items with a photo" do
+    item = items(:lost_found_promoted_item)
+    item.photo.attach(
+      io: StringIO.new(Vips::Image.black(40, 30).jpegsave_buffer),
+      filename: "sample.jpg",
+      content_type: "image/jpeg"
+    )
+
+    get lost_found_moves_path
+
+    assert_response :success
+    assert_select "a[href='#{item_path(item)}'] img[width='64'][height='64']", count: 1
+    assert_select "a[href='#{item_path(item)}'] span", text: "No photo", count: 0
+  end
+
+  test "index shows a placeholder thumbnail for items without a photo" do
+    get lost_found_moves_path
+
+    assert_response :success
+    assert_select "a[href='#{item_path(items(:lost_found_promoted_item))}'] span", text: "No photo"
+  end
+
   test "index shows empty state when nothing needs moving" do
     Item.lost_found_to_move.update_all(lost_found_moved_at: Time.current)
 
