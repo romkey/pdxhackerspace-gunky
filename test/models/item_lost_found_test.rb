@@ -83,4 +83,19 @@ class ItemLostFoundTest < ActiveSupport::TestCase
     assert_equal Item.gunky_completed.count, stats[:total]
     assert_not_includes Item.gunky_visible.mine.pluck(:id), items(:lost_found_unclaimed_item).id
   end
+
+  test "lost_found_to_move includes only promoted items not yet moved" do
+    assert_includes Item.lost_found_to_move, items(:lost_found_promoted_item)
+    assert_not_includes Item.lost_found_to_move, items(:lost_found_promoted_moved_item)
+    assert_not_includes Item.lost_found_to_move, items(:lost_found_unclaimed_item)
+  end
+
+  test "mark_lost_found_moved! records when the item was moved" do
+    item = items(:lost_found_promoted_item)
+
+    freeze_time do
+      item.mark_lost_found_moved!
+      assert_equal Time.current, item.reload.lost_found_moved_at
+    end
+  end
 end
