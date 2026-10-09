@@ -30,7 +30,7 @@ gem "bootsnap", require: false
 gem "thruster", require: false
 
 # Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
-gem "image_processing", "~> 2.0"
+gem "image_processing", "~> 2.2"
 gem "ruby-vips", "~> 2.0"
 
 # Capped below 6 because Action Cable's redis pubsub adapter (used in production
