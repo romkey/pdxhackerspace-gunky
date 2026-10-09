@@ -32,6 +32,15 @@
                   class: "form-check-input mt-0 d-none",
                   "aria-label": "Select #{item.display_description}",
                   data: { select_list_target: "checkbox", action: "select-list#update" } %>
+            <%= link_to item_path(item), class: "flex-shrink-0", tabindex: -1, "aria-hidden": true do %>
+              <% if item.photo.attached? %>
+                <%= image_tag item.photo.variant(resize_to_fill: [ 128, 128 ]),
+                      class: "rounded object-fit-cover", width: 64, height: 64, alt: "" %>
+              <% else %>
+                <span class="d-flex align-items-center justify-content-center rounded bg-secondary text-white-50 small"
+                      style="width: 64px; height: 64px;">No photo</span>
+              <% end %>
+            <% end %>
             <div>
               <div class="fw-semibold"><%= link_to item.display_description, item_path(item) %></div>
               <div class="text-muted small">
