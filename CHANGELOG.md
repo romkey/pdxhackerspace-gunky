@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-10-09
+
 ### Added
 
 - Lost+Found navbar link **To move** listing items promoted to Gunky that still need to be physically moved off the Lost+Found shelf
