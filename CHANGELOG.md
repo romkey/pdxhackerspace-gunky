@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.21.1] - 2026-10-09
+
 ### Added
 
 - Small photo thumbnails in the Lost+Found **To move** list to help identify items
