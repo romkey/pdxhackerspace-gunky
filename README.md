@@ -3,8 +3,8 @@
 [![CI](https://github.com/romkey/pdxhackerspace-gunky/actions/workflows/ci.yml/badge.svg)](https://github.com/romkey/pdxhackerspace-gunky/actions/workflows/ci.yml)
 [![Lint](https://github.com/romkey/pdxhackerspace-gunky/actions/workflows/lint.yml/badge.svg)](https://github.com/romkey/pdxhackerspace-gunky/actions/workflows/lint.yml)
 [![Build](https://github.com/romkey/pdxhackerspace-gunky/actions/workflows/release.yml/badge.svg)](https://github.com/romkey/pdxhackerspace-gunky/actions/workflows/release.yml)
-[![Ruby](https://img.shields.io/badge/Ruby-4.0.6-E67E22?logo=ruby&logoColor=white)](.ruby-version)
-[![Rails](https://img.shields.io/badge/Rails-8.1.3.1-E67E22?logo=rubyonrails&logoColor=white)](Gemfile)
+[![Ruby](https://img.shields.io/badge/Ruby-4.0.9-E67E22?logo=ruby&logoColor=white)](.ruby-version)
+[![Rails](https://img.shields.io/badge/Rails-8.1.4-E67E22?logo=rubyonrails&logoColor=white)](Gemfile)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 *Pronounced the same way you pronounce "GIF."*
@@ -105,7 +105,7 @@ docker compose -f docker-compose.test.yml run --rm lint
 
 ## Tech Stack
 
-- Rails 8.1.3.1 / Ruby 4.0.6
+- Rails 8.1.4 / Ruby 4.0.9
 - PostgreSQL 16 (development Compose) / PostgreSQL 18 (test Compose)
 - Redis 7 / Sidekiq
 - Bootstrap 5.3
