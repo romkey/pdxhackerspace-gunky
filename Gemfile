@@ -1,7 +1,7 @@
 source "https://rubygems.org"
 
 # Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
-gem "rails", "~> 8.1.4"
+gem "rails", "~> 8.1.4", ">= 8.1.4.1"
 # The modern asset pipeline for Rails [https://github.com/rails/propshaft]
 gem "propshaft"
 # Use postgresql as the database for Active Record
@@ -33,9 +33,9 @@ gem "thruster", require: false
 gem "image_processing", "~> 2.2"
 gem "ruby-vips", "~> 2.0"
 
-# Capped below 6 because Action Cable's redis pubsub adapter (used in production
-# for the Turbo Stream broadcasts in DescribeItemJob) depends on redis >= 4, < 6.
-# Activating redis 6 raises Gem::LoadError the first time a broadcast happens.
+# Must stay within Action Cable's redis pubsub adapter range (used in production
+# for the Turbo Stream broadcasts in DescribeItemJob): redis >= 4, < 7 as of Rails 8.1.4.
+# Activating an out-of-range redis raises Gem::LoadError the first time a broadcast happens.
 gem "redis", ">= 4.0.1", "< 7"
 gem "sidekiq"
 gem "sidekiq-cron"
@@ -43,7 +43,7 @@ gem "sentry-rails", "~> 7.0"
 gem "sentry-sidekiq", "~> 7.1"
 gem "slack-ruby-client"
 gem "pagy"
-# json 3.x changed JSON.parse arity and breaks ActiveSupport::JSON.decode in Rails 8.1.3.1
+# json 3.x broke ActiveSupport::JSON.decode in Rails 8.1.3.1; fixed by Rails 8.1.4
 gem "json", "< 4"
 gem "dotenv-rails", groups: [ :development, :test ]
 
