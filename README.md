@@ -80,6 +80,7 @@ docker compose exec web bash          # or: docker exec -it <container> bash
 13. Optional: set `SENTRY_DSN` (or `SENTRY_ENDPOINT`) to enable Sentry error reporting for web and Sidekiq.
 14. Optional: set `DUPLICATE_HINTS_ENABLED` to any value to post duplicate hints (see below). Unset, the check only logs what it would have posted.
 15. Optional: set `DUPLICATE_HINT_MIN_RANK` to the minimum match rank from 0 to 1 (default `0.2`).
+16. Optional: set `GUNKY_METRICS_TOKEN` to enable the Prometheus `/metrics` endpoint (see below).
 
 ### Lost+Found
 
@@ -88,6 +89,10 @@ Lost+Found is an optional phase before the normal Gunky giveaway flow. Upload an
 ### Duplicate hints
 
 After an item's poll is posted, Gunky compares it with items from the same site posted in the previous 60 days and, if any look like the same thing, replies once in the poll's thread saying how each turned out. Run `bin/rails "gunky:duplicate_hints:report[14]"` to see recent items' closest matches and pick `DUPLICATE_HINT_MIN_RANK` before setting `DUPLICATE_HINTS_ENABLED`.
+
+### Prometheus metrics
+
+Set `GUNKY_METRICS_TOKEN` and scrape `/metrics` with `Authorization: Bearer <token>`. Without the token set, the endpoint returns 404. It reports items, votes, Slack users, activity-log successes and failures, per-job-class counts, failures and duration histograms, Sidekiq queues, servers, retries and cron jobs, plus database, Redis, and web process stats. See [docs/metrics.md](docs/metrics.md) for the metric reference, a scrape config, and example alerts.
 
 ### Running Tests
 

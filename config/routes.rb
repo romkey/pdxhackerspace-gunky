@@ -63,6 +63,7 @@ Rails.application.routes.draw do
   resources :logs, only: [ :index ]
 
   get "up" => "rails/health#show", as: :rails_health_check
+  get "metrics" => "metrics#show", as: :metrics
 
   root "items#index"
 end

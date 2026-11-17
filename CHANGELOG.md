@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+
+- Prometheus `/metrics` endpoint secured by a bearer token (`GUNKY_METRICS_TOKEN`; 404 when unset). Reports items, votes, Slack users, activity-log failures, per-job-class execution counts, failures and duration histograms, Sidekiq queues, servers, retries and cron jobs, plus database, Redis, and web process stats. See `docs/metrics.md`
+
 ## [0.21.1] - 2026-10-09
 
 ### Added

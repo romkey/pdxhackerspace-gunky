@@ -41,6 +41,7 @@ services:
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_ENDPOINT: ${SENTRY_ENDPOINT:-}
       GUNKY_ADMIN_PASSWORD: ${GUNKY_ADMIN_PASSWORD:-}
+      GUNKY_METRICS_TOKEN: ${GUNKY_METRICS_TOKEN:-}
 
   sidekiq:
     image: ghcr.io/romkey/pdxhackerspace-gunky:${IMAGE_TAG:-latest}
