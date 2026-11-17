@@ -15,6 +15,14 @@ Sidekiq.configure_server do |config|
   end
 end
 
+# Per-job-class counts and durations for /metrics (see JobMetrics). Added after
+# initialization because JobMetrics is an autoloaded app constant.
+Rails.application.config.after_initialize do
+  Sidekiq.configure_server do |config|
+    config.server_middleware { |chain| chain.add JobMetrics::ServerMiddleware }
+  end
+end
+
 Sidekiq.configure_client do |config|
   config.redis = { url: ENV.fetch("REDIS_URL", "redis://localhost:6379/0") }
 end
