@@ -44,7 +44,7 @@ Metrics are computed on each scrape. Nothing is held in web-process memory, so t
 
 - **Database:** item, vote, user, activity-log, and storage numbers come straight from PostgreSQL.
 - **Sidekiq and Redis:** queue, server, retry, dead, and cron numbers come from Sidekiq's own API.
-- **Per-job execution stats:** `JobMetrics::ServerMiddleware` runs in every Sidekiq worker and records each job attempt's class, queue, outcome, exception class, and duration in one Redis hash (`gunky:metrics:jobs`). The counters live in Redis because Sidekiq runs in a different container from the web server. They are per *attempt*: a job that fails twice and then succeeds counts two failures and one success. A job interrupted by a Sidekiq shutdown is re-queued, so it isn't counted. Clear the counters with `bin/rails runner 'JobMetrics.reset!'`; Prometheus treats that like a counter reset.
+- **Per-job execution stats:** `JobMetrics::ServerMiddleware` runs in every Sidekiq worker and records each job attempt's class, queue, outcome, exception class, and duration in one Redis hash (`gunky:metrics:jobs`). The counters live in Redis because Sidekiq runs in a different container from the web server. They are per *attempt*: a job that fails twice and then succeeds counts two failures and one success. That includes errors ActiveJob handles itself with `retry_on` or `discard_on` (such as `DescribeItemJob`'s AI retries), which `ApplicationJob` reports to the middleware. A job interrupted by a Sidekiq shutdown is re-queued, so it isn't counted. Clear the counters with `bin/rails runner 'JobMetrics.reset!'`; Prometheus treats that like a counter reset.
 
 Each data source is collected separately. If Redis is down you still get the database metrics, and `gunky_metrics_collector_up{collector="sidekiq"}` drops to 0.
 
@@ -77,7 +77,7 @@ Collectors: `app`, `items`, `users`, `activity_log`, `settings`, `storage`, `dat
 | `gunky_items_with_ai_description` | gauge | | Items with an AI description |
 | `gunky_items_posted_to_slack` | gauge | | Items with a Gunky poll in Slack |
 | `gunky_items_lost_found_posted_to_slack` | gauge | | Items with a Lost+Found post in Slack |
-| `gunky_items_expiration_overdue` | gauge | | Pending items whose expiration date has passed. If this is above 0 after 6:00, `ExpireItemsJob` isn't running |
+| `gunky_items_expiration_overdue` | gauge | | Pending items `ExpireItemsJob` should already have resolved: expiring before today, or today once the job's daily run time (06:00 in `config/sidekiq_schedule.yml`) has passed. Above 0 for long means the job isn't running |
 | `gunky_items_killed_not_disposed` | gauge | | Items voted to trash but not yet marked disposed |
 | `gunky_items_awaiting_pickup` | gauge | | Items with at least one winner who hasn't picked up |
 | `gunky_active_items_by_location` | gauge | `location` | Pending Gunky items plus active Lost+Found items, by location. Names not in Settings → Locations are grouped as `other`; a blank location is `none` |

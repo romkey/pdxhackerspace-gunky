@@ -11,6 +11,7 @@ class MetricsCollector
   RECENT_WINDOWS = { "24h" => 24.hours, "7d" => 7.days, "30d" => 30.days }.freeze
   # Retry/dead sets are walked to group by job class; stop counting past this.
   MAX_SET_SCAN = 5_000
+  EXPIRE_ITEMS_DEFAULT_RUN_TIME = [ 6, 0 ].freeze
 
   def initialize(sections: SECTIONS)
     @sections = sections
@@ -91,8 +92,8 @@ class MetricsCollector
     @out.gauge(m(:items_posted_to_slack), "Items with a Gunky poll message in Slack.", Item.where.not(slack_message_ts: nil).count)
     @out.gauge(m(:items_lost_found_posted_to_slack), "Items with a Lost+Found message in Slack.", Item.where.not(lost_found_slack_message_ts: nil).count)
 
-    @out.gauge(m(:items_expiration_overdue), "Pending Gunky items whose expiration date is before today (ExpireItemsJob has not resolved them).",
-      Item.gunky_visible.pending.where(expiration_date: ...Date.current).count)
+    @out.gauge(m(:items_expiration_overdue), "Pending Gunky items ExpireItemsJob should already have resolved (expiration date passed, or today after its daily run).",
+      Item.gunky_visible.pending.where(expiration_date: ..expiration_overdue_cutoff).count)
     @out.gauge(m(:items_killed_not_disposed), "Items voted to trash that have not been marked disposed.", Item.killed_not_disposed.count)
     @out.gauge(m(:items_awaiting_pickup), "Gunky items with at least one winner who has not picked up.", Item.awaiting_pickup.count)
 
@@ -125,6 +126,23 @@ class MetricsCollector
     end
     @out.gauge(m(:votes_awaiting_pickup), "Winning 'mine' votes on Gunky items not yet picked up.",
       Vote.mine.where(picked_up_at: nil).where(item_id: Item.gunky_visible.mine.select(:id)).count)
+  end
+
+  # ExpireItemsJob resolves items expiring today at its daily run (06:00 by
+  # default), so today's items only count as overdue once that time passes.
+  def expiration_overdue_cutoff(now = Time.current)
+    hour, minute = expire_items_run_time
+    now >= now.change(hour: hour, min: minute) ? now.to_date : now.to_date - 1
+  end
+
+  def expire_items_run_time
+    schedule = YAML.load_file(Rails.root.join("config", "sidekiq_schedule.yml"))
+    minute, hour = schedule.dig("expire_items", "cron").to_s.split
+    return EXPIRE_ITEMS_DEFAULT_RUN_TIME unless hour&.match?(/\A\d+\z/) && minute&.match?(/\A\d+\z/)
+
+    [ hour.to_i, minute.to_i ]
+  rescue StandardError
+    EXPIRE_ITEMS_DEFAULT_RUN_TIME
   end
 
   # --- users -------------------------------------------------------------

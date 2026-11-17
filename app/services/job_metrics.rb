@@ -7,10 +7,12 @@
 # job classes x (queues + buckets + error classes), so the hash stays small.
 #
 # Counts are per attempt: a job that fails twice and then succeeds records two
-# failures and one success.
+# failures and one success. That includes ActiveJob retry_on/discard_on, which
+# swallow the error before Sidekiq sees it (see ApplicationJob#around_perform).
 class JobMetrics
   KEY = "gunky:metrics:jobs".freeze
   SEPARATOR = "|".freeze
+  FAILURE_KEY = :gunky_job_metrics_failure
   # Seconds. Covers quick Slack posts through slow AI vision calls.
   DURATION_BUCKETS = [ 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 120, 300 ].freeze
 
@@ -46,6 +48,16 @@ class JobMetrics
 
     def reset!
       with_redis { |conn| conn.call("DEL", KEY) }
+    end
+
+    # ActiveJob's retry_on/discard_on handle errors before they reach Sidekiq.
+    # ApplicationJob notes them here so the middleware still counts a failure.
+    def note_failure(error)
+      Thread.current[FAILURE_KEY] = error.class.name
+    end
+
+    def take_failure
+      Thread.current[FAILURE_KEY].tap { Thread.current[FAILURE_KEY] = nil }
     end
 
     def job_class_for(job)
@@ -104,10 +116,12 @@ class JobMetrics
     # is re-queued rather than finished, so it is not counted either way.
     def call(_job_instance, job, queue)
       started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      JobMetrics.take_failure
       result = yield
-      record(job, queue, started)
+      record(job, queue, started, JobMetrics.take_failure)
       result
     rescue StandardError => e
+      JobMetrics.take_failure
       record(job, queue, started, e.class.name)
       raise
     end

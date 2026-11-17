@@ -24,6 +24,21 @@ class MetricsCollectorTest < ActiveSupport::TestCase
     assert_equal 1, metric_value(body, 'gunky_metrics_collector_up{collector="items"}')
   end
 
+  test "items expiring today are overdue only after ExpireItemsJob's daily run" do
+    Item.update_all(expiration_date: 1.year.from_now.to_date)
+    items(:pending_item).update_columns(expiration_date: Date.new(2026, 3, 10))
+
+    travel_to Time.zone.local(2026, 3, 10, 5, 59) do
+      assert_equal 0, metric_value(render(%i[items]), "gunky_items_expiration_overdue")
+    end
+    travel_to Time.zone.local(2026, 3, 10, 6, 0) do
+      assert_equal 1, metric_value(render(%i[items]), "gunky_items_expiration_overdue")
+    end
+    travel_to Time.zone.local(2026, 3, 11, 1, 0) do
+      assert_equal 1, metric_value(render(%i[items]), "gunky_items_expiration_overdue")
+    end
+  end
+
   test "active items by location buckets unknown names as other" do
     Item.update_all(location: "Somewhere unlisted")
     items(:pending_item).update_columns(location: "Workshop")
