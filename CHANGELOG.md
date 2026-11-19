@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.22.1] - 2026-11-19
+
 ### Changed
 
 - Production image uses Ruby 4.0.10 and Node.js 26.13.1
