@@ -29,8 +29,8 @@ fi
 
 # Node for cssbundling. Debian bookworm ships Node 18, which cannot require the
 # ESM-only chokidar that sass depends on ("ERR_REQUIRE_ESM" during css:build).
-# CI runs Node 22 and the app image builds on 25, so track CI here.
-NODE_MAJOR=22
+# Match .node-version (Node 26).
+NODE_MAJOR=26
 node_major_installed() {
   command -v node >/dev/null 2>&1 || return 1
   node -p "process.versions.node.split('.')[0]" 2>/dev/null
@@ -42,6 +42,11 @@ if [[ "${current_node}" -lt "${NODE_MAJOR}" ]]; then
     ca-certificates curl gnupg >/dev/null
   curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | bash - >/dev/null 2>&1
   DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends nodejs >/dev/null
+fi
+
+bundler_version="$(awk '/^BUNDLED WITH/{getline; gsub(/[[:space:]]/, ""); print; exit}' Gemfile.lock)"
+if [[ "$(bundle -v)" != *"${bundler_version}"* ]]; then
+  gem install bundler -v "${bundler_version}" --no-document
 fi
 
 bundle check || bundle install -j"$(nproc)"

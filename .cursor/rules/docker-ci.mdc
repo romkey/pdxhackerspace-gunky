@@ -8,19 +8,19 @@ alwaysApply: false
 
 ## Docker
 
-- **Base image:** `ruby:3.3.11-slim` with multi-stage build
+- **Base image:** `ruby:4.0.10-slim` with multi-stage build
 - **CUPS client:** `cups-client` in the base image so `lp(1)` is available for receipt printing
 - **Diagnostics:** the base image installs troubleshooting tools (`bind9-host`/`bind9-dnsutils`, `iputils-ping`, `traceroute`, `netcat-openbsd`, `iproute2`, `net-tools`, `procps`, `lsof`, `strace`, `redis-tools`, `jq`, `less`, `vim-tiny`) in a separate layer from the runtime packages
-- **Node:** Installed via nodenv (Node 24.x) for asset compilation
-- **Yarn:** Use `yarn install --frozen-lockfile` — never modify `yarn.lock` in Docker builds
+- **Node:** Installed via node-build (Node 26.13.1, matching `.node-version`) for asset compilation
+- **npm:** Use `npm ci` — never modify `package-lock.json` in Docker builds
 - **Assets:** Precompiled with `SECRET_KEY_BASE_DUMMY=1`
 - **Runtime:** Non-root `rails` user; entrypoint at `bin/docker-entrypoint`
 
 ## docker-compose
 
-**Development** (`docker-compose.yml`): `db` (postgres:16), `redis`, `web`, `sidekiq` — app image is built from the Dockerfile; source bind-mounted at `/rails`.
+**Development** (`docker-compose.yml`): `db` (postgres:18), `redis` (redis:8), `web`, `sidekiq` — app image is built from the Dockerfile; source bind-mounted at `/rails`.
 
-**Tests and lint** (`docker-compose.test.yml`): no `build` — `ruby:3.3.11-bookworm` with the repo mounted at `/rails`, named volumes for Bundler and RuboCop cache. Services use `gunky-test-*` container names and an isolated network (`gunky-test-network`).
+**Tests and lint** (`docker-compose.test.yml`): no `build` — `ruby:4.0.10-bookworm` with the repo mounted at `/rails`, named volumes for Bundler and RuboCop cache. Services use `gunky-test-*` container names and an isolated network (`gunky-test-network`).
 
 - `docker compose -f docker-compose.test.yml run --rm app` — `bin/rails db:test:prepare test`
 - `docker compose -f docker-compose.test.yml run --rm lint` — `bin/rubocop` (RuboCop cache under `tmp/rubocop` on a named volume)
@@ -31,7 +31,7 @@ First run installs Debian packages once (marker on the bundle volume) then `bund
 
 ## GitHub Actions
 
-- **ci.yml:** Runs on push/PR to `main`; sets up PostgreSQL 16 and Redis 7 as service containers; runs `bin/rails test`
-- **release.yml:** Triggered by `v*` tags; runs tests then builds and pushes Docker image to `ghcr.io`
-- Uses `ruby/setup-ruby` with bundler-cache and `actions/setup-node` with yarn cache
+- **ci.yml:** Runs on push/PR to `main` on `ubuntu-26.04`; sets up PostgreSQL 18 (and Valkey 9 for the production boot job); runs `bin/rails test`
+- **release.yml:** Triggered by `v*` tags or a manual version bump; builds and pushes the Docker image to `ghcr.io`
+- Uses `ruby/setup-ruby` with bundler-cache and `actions/setup-node` with the npm cache
 - Concurrency: cancels in-progress runs for the same ref

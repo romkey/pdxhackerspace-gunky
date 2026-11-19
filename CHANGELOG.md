@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Changed
+
+- Production image uses Ruby 4.0.10 and Node.js 26.13.1
+- Updated Ruby gems, npm packages, and GitHub Actions runners
+
+### Security
+
+- Ruby 4.0.10 fixes regular-expression and string case-conversion vulnerabilities
+
 ## [0.22.0] - 2026-11-17
 
 ### Added
